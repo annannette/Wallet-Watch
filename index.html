@@ -43,9 +43,9 @@
             padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
         }
         
-        /* iOS 原生級滾動襯距：在最頂端時提供完美呼吸空間，並適應不同 iPhone 的瀏海高度 */
+        /* iOS 原生級滾動襯距：最佳化縮小頂部留白，緊湊且避開狀態列與瀏海 */
         .custom-pt-top {
-            padding-top: calc(16px + env(safe-area-inset-top, 0px));
+            padding-top: calc(8px + env(safe-area-inset-top, 0px));
         }
         
         @media (min-width: 640px) {
@@ -88,9 +88,6 @@
             <span>🔋</span>
           </div>
         </div>
-
-        <!-- iOS 頂部毛玻璃模糊狀態列背景 (使滾動內容在狀態列下方優雅模糊，宛如原生 App，滑到最頂時完全隱形融合) -->
-        <div class="absolute top-0 left-0 right-0 h-[calc(10px+env(safe-area-inset-top,0px))] sm:h-9 bg-[#FAF7F2]/90 backdrop-blur-md z-30 pointer-events-none"></div>
 
         <!-- Toast 提示條 -->
         <div id="toast" class="hidden fixed top-14 left-1/2 -translate-x-1/2 w-[90%] max-w-[360px] z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-md bg-white/95 text-[#362C24] border-[#E6DFD5] animate-fade-in-down">
@@ -1180,13 +1177,13 @@
                         </div>
 
                         <div class="grid grid-cols-2 gap-2">
-                            <select onchange="setHistoryFilter('type', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
+                            <select onchange="setHistoryFilter('type', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
                                 <option value="all" ${window.state.filterType === 'all' ? 'selected' : ''}>所有類型</option>
                                 <option value="expense" ${window.state.filterType === 'expense' ? 'selected' : ''}>支出明細</option>
                                 <option value="income" ${window.state.filterType === 'income' ? 'selected' : ''}>收入明細</option>
                             </select>
 
-                            <select onchange="setHistoryFilter('payment', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
+                            <select onchange="setHistoryFilter('payment', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
                                 <option value="all" ${window.state.filterPayment === 'all' ? 'selected' : ''}>所有付款</option>
                                 <option value="現金" ${window.state.filterPayment === '現金' ? 'selected' : ''}>僅現金 / 帳戶</option>
                                 ${cardOptions}
