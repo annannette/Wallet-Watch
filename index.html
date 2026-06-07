@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 將網頁 Title 與 apple-mobile-web-app-title 統一設定為 WalletWatch，確保 iPhone 加入主畫面時只會留 WalletWatch -->
     <title>WalletWatch</title>
     
     <!-- ==========================================
@@ -18,7 +19,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     
     <!-- 4. iPhone 專用高解析度 Apple Touch Icon (180x180) -->
-    <!-- 已更新為您指定的專屬外部圖片網址 -->
     <link rel="apple-touch-icon" sizes="180x180" href="https://cdn.phototourl.com/free/2026-06-07-c4d4f5b3-892d-4895-a465-8178bd9246da.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -188,7 +188,7 @@
                 { id: 'tx-3', date: '2026-06-07', type: 'expense', majorCategory: '交通', subCategory: '捷運/公車', amount: 110, currency: 'TWD', paymentMethod: '現金', note: '通勤加值' },
                 { id: 'tx-4', date: '2026-06-05', type: 'expense', majorCategory: '服裝', subCategory: '衣服', amount: 1200, currency: 'TWD', paymentMethod: '國泰 CUBE 卡', note: '買夏日防曬外套' },
                 { id: 'tx-5', date: '2026-06-06', type: 'expense', majorCategory: '美妝', subCategory: '保養品', amount: 1500, currency: 'TWD', paymentMethod: '中信 LINE Pay 卡', note: '保濕精華液' },
-                { id: 'tx-pre-1', date: '2026-05-10', type: 'expense', majorCategory: '飲食', subCategory: '晚餐', amount: 3500, currency: 'TWD', paymentMethod: '富邦 J 卡', note: '高檔燒肉慶生' },
+                { id: 'tx-pre-1', date: '2026-05-10', type: 'expense', majorCategory: '飲食', subCategory: '晚餐', amount: 3500, currency: 'TWD', paymentMethod: '富邦 J 卡', stroke: '1', note: '高檔燒肉慶生' },
                 { id: 'tx-pre-2', date: '2026-05-15', type: 'expense', majorCategory: '娛樂', subCategory: '旅行', amount: 8000, currency: 'TWD', paymentMethod: '國泰 CUBE 卡', note: '兩天一夜小旅行' },
                 { id: 'tx-pre-3', date: '2026-05-01', type: 'income', majorCategory: '收入', subCategory: '正職薪資', amount: 45000, currency: 'TWD', paymentMethod: '現金', note: '上月薪資入帳' },
                 { id: 'tx-pre2-1', date: '2026-04-05', type: 'expense', majorCategory: '飲食', subCategory: '午餐', amount: 4200, currency: 'TWD', paymentMethod: '現金', note: '日常飲食累計' },
@@ -631,7 +631,7 @@
                             </div>
                         </div>
                         <div class="flex-1 space-y-2">`;
-                categoryExpenses.slice(0, 4).forEach((cat, idx) => {
+                categoryExpenses.forEach((cat, idx) => {
                     const colorLabel = colors[idx % colors.length];
                     categoryListHTML += `
                             <div class="flex items-center justify-between text-xs">
@@ -1119,8 +1119,8 @@
                                 ${tx.currency !== window.state.baseCurrencyCode ? `<p class="text-[8px] font-bold text-[#8A7B70]">≈ ${formatBaseAmount(convertToBase(tx.amount, tx.currency))}</p>` : ''}
                             </div>
                             <div class="flex items-center gap-1">
-                                <button onclick="triggerEdit('${tx.id}')" class="w-6 h-6 rounded-lg bg-[#FAF7F2] border border-[#E6DFD5] text-[#8A7B70] hover:text-[#4A3C31] flex items-center justify-center text-[10px] cursor-pointer font-black transition">✏️</button>
-                                <button onclick="deleteTx('${tx.id}')" class="w-6 h-6 rounded-lg bg-[#FAF7F2] border border-rose-100 text-rose-300 hover:text-rose-500 flex items-center justify-center text-[10px] cursor-pointer font-black transition">✕</button>
+                                <button onclick="triggerEdit('${tx.id}')" class="w-6 h-6 rounded-lg bg-white border border-[#E6DFD5] text-[#8A7B70] hover:text-[#4A3C31] flex items-center justify-center text-[10px] cursor-pointer font-bold transition">✏️</button>
+                                <button onclick="deleteTx('${tx.id}')" class="w-6 h-6 rounded-lg bg-white border border-rose-100 text-rose-300 hover:text-rose-600 flex items-center justify-center text-[10px] cursor-pointer font-bold transition">✕</button>
                             </div>
                         </div>
                     </div>`;
