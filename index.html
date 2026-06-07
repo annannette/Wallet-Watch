@@ -16,7 +16,7 @@
     <meta property="og:type" content="website">
     
     <!-- ==========================================
-        iOS (iPhone / iPad) 加入主畫面專用 PWA 增增強設定
+        iOS (iPhone / iPad) 加入主畫面專用 PWA 增強設定
         ========================================== -->
     <!-- 1. 設定主畫面 APP 名稱 -->
     <meta name="apple-mobile-web-app-title" content="WalletWatch">
@@ -33,15 +33,40 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700..950;1,700..950&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;950&display=swap" rel="stylesheet">
     <style>
+        /* ==========================================
+           PWA 專用原生級防回彈、防抖動鎖定設定
+           ========================================== */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed; /* 徹底鎖定最外層視窗，阻止 iOS Safari 拖動回彈造成導覽列晃動 */
+            top: 0;
+            left: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #FAF7F2; /* 手機端完美融合 App 背景底色 */
+        }
+        
+        @media (min-width: 640px) {
+            html, body {
+                background-color: #EBE7E0; /* 電腦模擬機身外側底色 */
+            }
+        }
+
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            overscroll-behavior-y: none; /* 鎖定 body 避免 iOS 橡皮筋回彈晃動 */
+            overscroll-behavior-y: none; /* 雙重鎖定防回彈 */
         }
+        
         .font-serif { font-family: 'Playfair Display', serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 修正加入主畫面後的 iOS 安全區適配，避免導覽列消失或被 Home Indicator 遮擋 */
+        /* 修正加入主畫面後的 iOS 安全區適配，避免導覽列被 Home Indicator 遮擋 */
         .safe-bottom {
             padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
         }
@@ -58,8 +83,9 @@
         }
         
         #main-scroll-container {
-            padding-bottom: 40px !important; /* 由於導覽列非絕對定位，此處微調最底端元件的舒適呼吸空間 */
+            padding-bottom: 40px !important; /* 微調最底端元件的舒適呼吸空間 */
             overscroll-behavior-y: contain; /* 滾動不傳遞至 body */
+            -webkit-overflow-scrolling: touch; /* 啟用 iOS 絲滑滾動 */
         }
 
         @keyframes slideUp {
@@ -78,7 +104,7 @@
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-0 sm:p-6 md:p-12 text-[#362C24] bg-[#FAF7F2] sm:bg-[#EBE7E0]">
+<body class="text-[#362C24]">
 
     <!-- 擬真 iPhone 完美機身外殼 (h-[100dvh] 完美確保手機端絕不溢出螢幕) -->
     <div class="w-full max-w-[430px] h-[100dvh] sm:h-[880px] bg-[#FAF7F2] sm:rounded-[50px] shadow-none sm:shadow-[0_25px_60px_-15px_rgba(74,60,49,0.15)] border-0 sm:border-[10px] border-[#2C302E] flex flex-col relative overflow-hidden">
@@ -142,8 +168,8 @@
         <!-- 擬真 iPhone 觸控條安全區 -->
         <div class="hidden sm:block absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#2C302E] rounded-full pointer-events-none z-40"></div>
 
-        <!-- 底部 iOS 經典扁平雙色調圖標導覽列 (平級對齊按鈕，並加入 safe-bottom 確保不被主畫面條遮蓋，移除了 absolute 定位改用 Flex 收縮固定) -->
-        <nav class="bg-white/90 backdrop-blur-lg border-t border-[#E6DFD5]/80 pt-3 shadow-lg z-30 px-3 flex justify-around items-center safe-bottom shrink-0 w-full relative">
+        <!-- 底部 iOS 經典扁平雙色調圖標導覽列 (平級對齊按鈕，並加入 safe-bottom 與 touch-action: none 確保不被拖曳或回彈拉走) -->
+        <nav class="bg-white/90 backdrop-blur-lg border-t border-[#E6DFD5]/80 pt-3 shadow-lg z-30 px-3 flex justify-around items-center safe-bottom shrink-0 w-full relative" style="touch-action: none;">
             
             <!-- 1. 歷史明細 -->
             <button onclick="switchTab('history')" id="tab-history" class="flex flex-col items-center gap-1 transition-all duration-150 cursor-pointer text-slate-400 font-bold">
@@ -925,20 +951,20 @@
 
                                 <!-- Row 2 -->
                                 <button type="button" onclick="handleCalcInput('4')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-white/70 active:scale-95 shadow-sm font-black text-lg">4</button>
-                                <button type="button" onclick="handleCalcInput('5')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] rounded-xl text-lg font-black">5</button>
-                                <button type="button" onclick="handleCalcInput('6')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] rounded-xl text-lg font-black">6</button>
+                                <button type="button" onclick="handleCalcInput('5')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border-[#E6DFD5] rounded-xl text-lg font-black">5</button>
+                                <button type="button" onclick="handleCalcInput('6')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border-[#E6DFD5] rounded-xl text-lg font-black">6</button>
                                 <button type="button" onclick="handleCalcInput('*')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">✕</button>
 
                                 <!-- Row 3 -->
-                                <button type="button" onclick="handleCalcInput('1')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] rounded-xl text-lg font-black">1</button>
-                                <button type="button" onclick="handleCalcInput('2')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] rounded-xl text-lg font-black">2</button>
-                                <button type="button" onclick="handleCalcInput('3')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] rounded-xl text-lg font-black">3</button>
+                                <button type="button" onclick="handleCalcInput('1')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border-[#E6DFD5] rounded-xl text-lg font-black">1</button>
+                                <button type="button" onclick="handleCalcInput('2')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border-[#E6DFD5] rounded-xl text-lg font-black">2</button>
+                                <button type="button" onclick="handleCalcInput('3')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border-[#E6DFD5] rounded-xl text-lg font-black">3</button>
                                 <button type="button" onclick="handleCalcInput('-')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">-</button>
 
                                 <!-- Row 4 -->
                                 <button type="button" onclick="handleCalcInput('clear')" class="h-11 flex items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 active:scale-95 shadow-sm font-black text-xs text-rose-700">C</button>
-                                <button type="button" onclick="handleCalcInput('0')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] rounded-xl text-lg font-black">0</button>
-                                <button type="button" onclick="handleCalcInput('.')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] rounded-xl text-lg font-black">•</button>
+                                <button type="button" onclick="handleCalcInput('0')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border-[#E6DFD5] rounded-xl text-lg font-black">0</button>
+                                <button type="button" onclick="handleCalcInput('.')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border-[#E6DFD5] rounded-xl text-lg font-black">•</button>
                                 <button type="button" onclick="handleCalcInput('+')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">+</button>
 
                                 <!-- Row 5 -->
