@@ -1,0 +1,1931 @@
+import React, { useState, useMemo, useEffect } from 'react';
+
+// ==========================================
+// 預設與初始資料 (深栗與溫潤拿鐵棕色系)
+// ==========================================
+
+const DEFAULT_CURRENCIES = [
+  { code: 'TWD', symbol: 'NT$', rateToBase: 1, name: '新台幣' },
+  { code: 'USD', symbol: '$', rateToBase: 31.0, name: '美金' },
+  { code: 'JPY', symbol: '¥', rateToBase: 0.21, name: '日圓' },
+  { code: 'EUR', symbol: '€', rateToBase: 33.5, name: '歐元' }
+];
+
+const DEFAULT_CREDIT_CARDS = [
+  { id: 'card-1', name: '中信 LINE Pay 卡', bank: '中國信託' },
+  { id: 'card-2', name: '富邦 J 卡', bank: '台北富邦' },
+  { id: 'card-3', name: '國泰 CUBE 卡', bank: '國泰世華' }
+];
+
+// 低飽和度優雅大地色系徽章
+const DEFAULT_CATEGORIES = {
+  expense: {
+    '飲食': { icon: 'dining', color: 'bg-[#F5EBE6] text-[#6E5A4F] border-[#E8DDD5]', sub: [{ name: '早餐', icon: '🍳' }, { name: '午餐', icon: '🍱' }, { name: '晚餐', icon: '🍜' }, { name: '下午茶', icon: '☕' }] },
+    '交通': { icon: 'transport', color: 'bg-[#EFEFEE] text-[#555555] border-[#E0E0DF]', sub: [{ name: '捷運/公車', icon: '🚇' }, { name: '計程車', icon: '🚕' }, { name: '加油', icon: '⛽' }] },
+    '娛樂': { icon: 'entertainment', color: 'bg-[#F0EAE1] text-[#7A6B58] border-[#E2D9CD]', sub: [{ name: '電影', icon: '🍿' }, { name: '遊戲/網購', icon: '🎮' }, { name: '旅行', icon: '✈️' }] },
+    '醫藥': { icon: 'medical', color: 'bg-[#ECEDE8] text-[#5B604D] border-[#DDDFD5]', sub: [{ name: '看診', icon: '🏥' }, { name: '保健品', icon: '🌿' }] },
+    '服裝': { icon: 'clothing', color: 'bg-[#F3EBE9] text-[#7E5C54] border-[#E6D7D3]', sub: [{ name: '衣服', icon: '👚' }, { name: '鞋包', icon: '👟' }] },
+    '美妝': { icon: 'beauty', color: 'bg-[#F5ECEF] text-[#865F6C] border-[#E9D7DC]', sub: [{ name: '保養品', icon: '🧴' }, { name: '彩妝', icon: '💅' }] },
+    '其他': { icon: 'others', color: 'bg-[#F4F1EC] text-[#6C6962] border-[#E5E1D8]', sub: [{ name: '日常雜貨', icon: '🧹' }, { name: '手機費', icon: '📱' }] }
+  },
+  income: {
+    '收入': { icon: 'income', color: 'bg-[#EAF2ED] text-[#5A8F76] border-[#D5E6DC]', sub: [{ name: '正職薪資', icon: '💼' }, { name: '兼職/外快', icon: '🪙' }, { name: '投資回報', icon: '📈' }] }
+  }
+};
+
+const getInitialTransactions = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const formatMonth = (m) => `${year}-${String(m).padStart(2, '0')}`;
+  
+  return [
+    { id: 'tx-1', date: `${formatMonth(month)}-01`, type: 'income', majorCategory: '收入', subCategory: '正職薪資', amount: 45000, currency: 'TWD', paymentMethod: '現金', note: '本月薪資入帳' },
+    { id: 'tx-2', date: `${formatMonth(month)}-07`, type: 'expense', majorCategory: '飲食', subCategory: '下午茶', amount: 110, currency: 'TWD', paymentMethod: '現金', note: '與朋友聚餐咖啡' },
+    { id: 'tx-3', date: `${formatMonth(month)}-07`, type: 'expense', majorCategory: '交通', subCategory: '捷運/公車', amount: 110, currency: 'TWD', paymentMethod: '現金', note: '通勤加值' },
+    { id: 'tx-4', date: `${formatMonth(month)}-05`, type: 'expense', majorCategory: '服裝', subCategory: '衣服', amount: 1200, currency: 'TWD', paymentMethod: '國泰 CUBE 卡', note: '買夏日防曬外套' },
+    { id: 'tx-5', date: `${formatMonth(month)}-06`, type: 'expense', majorCategory: '美妝', subCategory: '保養品', amount: 1500, currency: 'TWD', paymentMethod: '中信 LINE Pay 卡', note: '保濕精華液' },
+    { id: 'tx-pre-1', date: `${formatMonth(month === 1 ? 12 : month - 1)}-10`, type: 'expense', majorCategory: '飲食', subCategory: '晚餐', amount: 3500, currency: 'TWD', paymentMethod: '富邦 J 卡', note: '高檔燒肉慶生' },
+    { id: 'tx-pre-2', date: `${formatMonth(month === 1 ? 12 : month - 1)}-15`, type: 'expense', majorCategory: '娛樂', subCategory: '旅行', amount: 8000, currency: 'TWD', paymentMethod: '國泰 CUBE 卡', note: '兩天一夜小旅行' },
+    { id: 'tx-pre-3', date: `${formatMonth(month === 1 ? 12 : month - 1)}-01`, type: 'income', majorCategory: '收入', subCategory: '正職薪資', amount: 45000, currency: 'TWD', paymentMethod: '現金', note: '上月薪資入帳' },
+    { id: 'tx-pre2-1', date: `${formatMonth(month <= 2 ? (month === 2 ? 12 : 11) : month - 2)}-05`, type: 'expense', majorCategory: '飲食', subCategory: '午餐', amount: 4200, currency: 'TWD', paymentMethod: '現金', note: '日常飲食累計' },
+    { id: 'tx-pre2-2', date: `${formatMonth(month <= 2 ? (month === 2 ? 12 : 11) : month - 2)}-18`, type: 'expense', majorCategory: '美妝', subCategory: '彩妝', amount: 2600, currency: 'TWD', paymentMethod: '中信 LINE Pay 卡', note: '專櫃粉底液' }
+  ];
+};
+
+const CategoryIcon = ({ name, className = "w-5 h-5" }) => {
+  switch (name) {
+    case '飲食':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" fill="currentColor" fillOpacity="0.15" />
+          <line x1="6" y1="2" x2="6" y2="4" />
+          <line x1="10" y1="2" x2="10" y2="4" />
+          <line x1="14" y1="2" x2="14" y2="4" />
+        </svg>
+      );
+    case '交通':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" fill="currentColor" fillOpacity="0.15" />
+          <circle cx="7" cy="17" r="2" />
+          <circle cx="17" cy="17" r="2" />
+        </svg>
+      );
+    case '娛樂':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <rect x="2" y="6" width="20" height="12" rx="2" fill="currentColor" fillOpacity="0.15" />
+          <path d="M6 12h4M8 10v4M15 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM18 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
+        </svg>
+      );
+    case '醫藥':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" fill="currentColor" fillOpacity="0.15" />
+          <path d="m8.5 8.5 7 7" strokeWidth="1.8" />
+        </svg>
+      );
+    case '服裝':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M20.38 3.46L16 2a4 4 0 0 0-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l1.08 5.4a2 2 0 0 0 1.94 1.41H7v8a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-8h1.7a2 2 0 0 0 1.94-1.41l1.08-5.4a2 2 0 0 0-1.34-2.23Z" fill="currentColor" fillOpacity="0.15" />
+        </svg>
+      );
+    case '美妝':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" fill="currentColor" fillOpacity="0.2" />
+        </svg>
+      );
+    case '其他':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" fill="currentColor" fillOpacity="0.15" />
+          <path d="M3.27 7 12 12.01 20.73 7M12 22.08V12" />
+        </svg>
+      );
+    case '收入':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <circle cx="12" cy="12" r="10" fill="currentColor" fillOpacity="0.2" />
+          <line x1="12" y1="8" x2="12" y2="16" />
+          <path d="M16 10H10a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8" />
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      );
+  }
+};
+
+const TabIcon = ({ name, active, stroke, className = "w-6 h-6 transition-colors" }) => {
+  const strokeColor = stroke || (active ? "#4A3C31" : "#A39385");
+  const fillOpacity = active ? "0.2" : "0.05";
+  
+  switch (name) {
+    case 'dashboard':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor" fillOpacity={fillOpacity} />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+      );
+    case 'add':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.12 2.12 0 1 1 3 3L12 15l-4 1 1-4Z" fill="currentColor" fillOpacity={fillOpacity} />
+        </svg>
+      );
+    case 'history':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <rect x="3" y="4" width="18" height="18" rx="2" fill="currentColor" fillOpacity={fillOpacity} />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+          <path d="m9 16 2 2 4-4" />
+        </svg>
+      );
+    case 'categories':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="currentColor" fillOpacity={fillOpacity} />
+          <circle cx="12" cy="14" r="2" />
+        </svg>
+      );
+    case 'settings':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <rect x="5" y="2" width="14" height="20" rx="2" fill="currentColor" fillOpacity={fillOpacity} />
+          <line x1="12" y1="18" x2="12.01" y2="18" />
+          <path d="m15 6-3-3-3 3" />
+          <path d="M12 3v11" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
+
+export default function App() {
+  const [transactions, setTransactions] = useState(() => {
+    const saved = localStorage.getItem('ios_budget_transactions');
+    return saved ? JSON.parse(saved) : getInitialTransactions();
+  });
+
+  const [categories, setCategories] = useState(() => {
+    const saved = localStorage.getItem('ios_budget_categories');
+    return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+  });
+
+  const [creditCards, setCreditCards] = useState(() => {
+    const saved = localStorage.getItem('ios_budget_credit_cards');
+    return saved ? JSON.parse(saved) : DEFAULT_CREDIT_CARDS;
+  });
+
+  const [currencies, setCurrencies] = useState(() => {
+    const saved = localStorage.getItem('ios_budget_currencies');
+    return saved ? JSON.parse(saved) : DEFAULT_CURRENCIES;
+  });
+
+  const [baseCurrencyCode, setBaseCurrencyCode] = useState('TWD');
+  const [currentTab, setCurrentTab] = useState('dashboard');
+  
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  // 記帳 Form 狀態 (全配置重黑粗體操作)
+  const [txType, setTxType] = useState('expense');
+  const [txMajorCategory, setTxMajorCategory] = useState('飲食');
+  const [txSubCategory, setTxSubCategory] = useState('');
+  const [txAmount, setTxAmount] = useState('');
+  const [txCurrency, setTxCurrency] = useState('TWD');
+  const [txPaymentMethod, setTxPaymentMethod] = useState('現金');
+  const [txDate, setTxDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [txNote, setTxNote] = useState('');
+
+  // 編輯交易狀態
+  const [editingTx, setEditingTx] = useState(null); 
+  const [editType, setEditType] = useState('expense');
+  const [editMajorCategory, setEditMajorCategory] = useState('飲食');
+  const [editSubCategory, setEditSubCategory] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editCurrency, setEditCurrency] = useState('TWD');
+  const [editPaymentMethod, setEditPaymentMethod] = useState('現金');
+  const [editDate, setEditDate] = useState('');
+  const [editNote, setEditNote] = useState('');
+
+  // 分類編輯與建立狀態
+  const [editingMajorType, setEditingMajorType] = useState('expense');
+  const [editingMajorCat, setEditingMajorCat] = useState('飲食');
+  const [newSubName, setNewSubName] = useState('');
+  const [newSubIcon, setNewSubIcon] = useState('✨');
+
+  // 信用卡建立狀態
+  const [newCardName, setNewCardName] = useState('');
+  const [newCardBank, setNewCardBank] = useState('');
+
+  // 多國匯率編輯狀態
+  const [editingRates, setEditingRates] = useState({});
+
+  // 轉移代碼狀態
+  const [importString, setImportString] = useState('');
+  const [showMigrationGuide, setShowMigrationGuide] = useState(false);
+
+  // 自訂提示
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700..950;1,700..950&family=Plus+Jakarta+Sans:wght@700;800;950&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }, []);
+
+  // Effects 同步 LocalStorage
+  useEffect(() => {
+    localStorage.setItem('ios_budget_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem('ios_budget_categories', JSON.stringify(categories));
+  }, [categories]);
+
+  useEffect(() => {
+    localStorage.setItem('ios_budget_credit_cards', JSON.stringify(creditCards));
+  }, [creditCards]);
+
+  useEffect(() => {
+    localStorage.setItem('ios_budget_currencies', JSON.stringify(currencies));
+  }, [currencies]);
+
+  // 大分類改變時自動更新預設小分類
+  useEffect(() => {
+    const subs = categories[txType]?.[txMajorCategory]?.sub || [];
+    if (subs.length > 0) {
+      setTxSubCategory(subs[0].name);
+    } else {
+      setTxSubCategory('');
+    }
+  }, [txType, txMajorCategory, categories]);
+
+  // 收支類型改變時，同步預設的大分類
+  useEffect(() => {
+    const majors = Object.keys(categories[txType] || {});
+    if (majors.length > 0) {
+      setTxMajorCategory(majors[0]);
+    }
+  }, [txType, categories]);
+
+  // 編輯模式：聯動更新小分類與大分類
+  useEffect(() => {
+    if (editingTx) {
+      const subs = categories[editType]?.[editMajorCategory]?.sub || [];
+      if (subs.length > 0 && !subs.some(s => s.name === editSubCategory)) {
+        setEditSubCategory(subs[0].name);
+      }
+    }
+  }, [editType, editMajorCategory, categories, editingTx]);
+
+  useEffect(() => {
+    const rates = {};
+    currencies.forEach(c => {
+      rates[c.code] = c.rateToBase;
+    });
+    setEditingRates(rates);
+  }, [currencies]);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const baseCurrency = useMemo(() => {
+    return currencies.find(c => c.code === baseCurrencyCode) || currencies[0];
+  }, [currencies, baseCurrencyCode]);
+
+  const convertToBase = (amount, fromCurrencyCode) => {
+    const fromCurr = currencies.find(c => c.code === fromCurrencyCode);
+    if (!fromCurr || !baseCurrency) return amount;
+    const amountInNTD = amount * fromCurr.rateToBase;
+    return amountInNTD / baseCurrency.rateToBase;
+  };
+
+  const formatAmount = (amount, currencyCode, showSymbol = true) => {
+    const curr = currencies.find(c => c.code === currencyCode);
+    const symbol = curr ? curr.symbol : '$';
+    const formatted = Number(amount).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return showSymbol ? `${symbol} ${formatted}` : formatted;
+  };
+
+  const formatBaseAmount = (amount) => {
+    return formatAmount(amount, baseCurrencyCode);
+  };
+
+  // 金額字型自適應縮放，防止在 iPhone 螢幕寬度下折行
+  const amountFontSize = useMemo(() => {
+    const length = txAmount.length || 1;
+    if (length <= 6) return '3.2rem';
+    const dynamicSize = 3.2 - (length - 6) * 0.22;
+    return `${Math.max(1.6, dynamicSize)}rem`;
+  }, [txAmount]);
+
+  const handleKeyboardInput = (value) => {
+    setTxAmount(prev => {
+      const current = prev.toString();
+      if (value === 'backspace') {
+        if (current.length <= 1) return '';
+        return current.slice(0, -1);
+      }
+      if (value === 'clear') {
+        return '';
+      }
+      if (value === '.') {
+        if (current.includes('.')) return current;
+        if (current === '') return '0.';
+        return current + '.';
+      }
+      if (current.replace('.', '').length >= 10) {
+        showToast('已達最大輸入長度', 'info');
+        return current;
+      }
+      if (current === '0' && value !== '.') {
+        return value.toString();
+      }
+      return current + value.toString();
+    });
+  };
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(tx => tx.date.startsWith(selectedMonth));
+  }, [transactions, selectedMonth]);
+
+  const monthlyTotals = useMemo(() => {
+    let expenseTotal = 0;
+    let incomeTotal = 0;
+    filteredTransactions.forEach(tx => {
+      const converted = convertToBase(tx.amount, tx.currency);
+      if (tx.type === 'expense') {
+        expenseTotal += converted;
+      } else {
+        incomeTotal += converted;
+      }
+    });
+    return { expense: expenseTotal, income: incomeTotal, balance: incomeTotal - expenseTotal };
+  }, [filteredTransactions, currencies, baseCurrencyCode]);
+
+  // 計算歷史月份消費金額對比 (每月消費金額趨勢)
+  const monthlyTrendStats = useMemo(() => {
+    const trend = {};
+    transactions.forEach(tx => {
+      if (tx.type === 'expense') {
+        const month = tx.date.substring(0, 7); // "YYYY-MM"
+        const converted = convertToBase(tx.amount, tx.currency);
+        trend[month] = (trend[month] || 0) + converted;
+      }
+    });
+    
+    // 依年份月份降序排序
+    return Object.entries(trend)
+      .map(([month, amount]) => ({ month, amount }))
+      .sort((a, b) => b.month.localeCompare(a.month))
+      .slice(0, 5); // 顯示最近 5 個有消費的月份
+  }, [transactions, currencies, baseCurrencyCode]);
+
+  // 計算趨勢中的最大消費月份，做進度條比例用
+  const maxMonthlySpend = useMemo(() => {
+    if (monthlyTrendStats.length === 0) return 1;
+    return Math.max(...monthlyTrendStats.map(m => m.amount), 1);
+  }, [monthlyTrendStats]);
+
+  const categoryExpenses = useMemo(() => {
+    const summary = {};
+    Object.keys(categories.expense).forEach(cat => {
+      summary[cat] = {
+        amount: 0,
+        percentage: 0,
+        colorClass: categories.expense[cat].color,
+        icon: categories.expense[cat].icon
+      };
+    });
+
+    let totalExpense = 0;
+    filteredTransactions.forEach(tx => {
+      if (tx.type === 'expense') {
+        const converted = convertToBase(tx.amount, tx.currency);
+        totalExpense += converted;
+        if (summary[tx.majorCategory]) {
+          summary[tx.majorCategory].amount += converted;
+        } else {
+          summary[tx.majorCategory] = { amount: converted, percentage: 0, colorClass: 'bg-slate-100 text-slate-500 border-slate-200', icon: '❓' };
+        }
+      }
+    });
+
+    Object.keys(summary).forEach(cat => {
+      if (totalExpense > 0) {
+        summary[cat].percentage = Math.round((summary[cat].amount / totalExpense) * 100);
+      }
+    });
+
+    return Object.entries(summary)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [filteredTransactions, categories, currencies, baseCurrencyCode]);
+
+  const donutSegments = useMemo(() => {
+    let accumPercentage = 0;
+    return categoryExpenses
+      .filter(c => c.amount > 0)
+      .map((cat, idx) => {
+        const percentage = cat.percentage;
+        const start = accumPercentage;
+        accumPercentage += percentage;
+        return {
+          name: cat.name,
+          percentage,
+          start,
+          end: accumPercentage,
+          color: idx === 0 ? '#4A3C31' : idx === 1 ? '#8A7B70' : idx === 2 ? '#BCA38D' : idx === 3 ? '#D2C5B4' : idx === 4 ? '#A39385' : '#E6DFD5'
+        };
+      });
+  }, [categoryExpenses]);
+
+  const creditCardExpenses = useMemo(() => {
+    const cardTotals = {};
+    creditCards.forEach(card => {
+      cardTotals[card.name] = { id: card.id, bank: card.bank, amount: 0, txCount: 0 };
+    });
+    let creditCardTotal = 0;
+    filteredTransactions.forEach(tx => {
+      if (tx.type === 'expense' && tx.paymentMethod !== '現金') {
+        const converted = convertToBase(tx.amount, tx.currency);
+        if (cardTotals[tx.paymentMethod]) {
+          cardTotals[tx.paymentMethod].amount += converted;
+          cardTotals[tx.paymentMethod].txCount += 1;
+          creditCardTotal += converted;
+        }
+      }
+    });
+    return {
+      total: creditCardTotal,
+      cards: Object.entries(cardTotals).map(([name, data]) => ({ name, ...data }))
+    };
+  }, [filteredTransactions, creditCards, currencies, baseCurrencyCode]);
+
+  const handleAddTransaction = (e) => {
+    e.preventDefault();
+    const numericAmount = parseFloat(txAmount);
+    if (!txAmount || isNaN(numericAmount) || numericAmount <= 0) {
+      showToast('請使用鍵盤輸入有效的金額！', 'error');
+      return;
+    }
+    if (!txSubCategory) {
+      showToast('請先確認小分類設定！', 'error');
+      return;
+    }
+
+    const newTx = {
+      id: `tx-${Date.now()}`,
+      date: txDate,
+      type: txType,
+      majorCategory: txMajorCategory,
+      subCategory: txSubCategory,
+      amount: numericAmount,
+      currency: txCurrency,
+      paymentMethod: txType === 'income' ? '現金' : txPaymentMethod,
+      note: txNote.trim()
+    };
+
+    setTransactions(prev => [newTx, ...prev]);
+    showToast('交易已記錄！');
+    setTxAmount('');
+    setTxNote('');
+    setCurrentTab('dashboard');
+  };
+
+  const handleStartEdit = (tx) => {
+    setEditingTx(tx);
+    setEditType(tx.type);
+    setEditMajorCategory(tx.majorCategory);
+    setEditSubCategory(tx.subCategory);
+    setEditAmount(tx.amount.toString());
+    setEditCurrency(tx.currency);
+    setEditPaymentMethod(tx.paymentMethod);
+    setEditDate(tx.date);
+    setEditNote(tx.note);
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    const numericAmount = parseFloat(editAmount);
+    if (!editAmount || isNaN(numericAmount) || numericAmount <= 0) {
+      showToast('請輸入有效的修改金額！', 'error');
+      return;
+    }
+
+    setTransactions(prev => prev.map(t => {
+      if (t.id === editingTx.id) {
+        return {
+          ...t,
+          type: editType,
+          majorCategory: editMajorCategory,
+          subCategory: editSubCategory,
+          amount: numericAmount,
+          currency: editCurrency,
+          paymentMethod: editType === 'income' ? '現金' : editPaymentMethod,
+          date: editDate,
+          note: editNote.trim()
+        };
+      }
+      return t;
+    }));
+
+    showToast('交易明細已更新儲存！');
+    setEditingTx(null);
+  };
+
+  const handleDeleteTransaction = (id) => {
+    setTransactions(prev => prev.filter(t => t.id !== id));
+    showToast('明細已順利刪除', 'info');
+  };
+
+  const handleAddSubCategory = (e) => {
+    e.preventDefault();
+    if (!newSubName.trim()) {
+      showToast('請輸入小分類名稱', 'error');
+      return;
+    }
+
+    const currentSubs = categories[editingMajorType][editingMajorCat]?.sub || [];
+    if (currentSubs.some(s => s.name === newSubName.trim())) {
+      showToast('此小分類名稱已存在！', 'error');
+      return;
+    }
+
+    const updatedSub = [...currentSubs, { name: newSubName.trim(), icon: newSubIcon }];
+
+    setCategories(prev => ({
+      ...prev,
+      [editingMajorType]: {
+        ...prev[editingMajorType],
+        [editingMajorCat]: {
+          ...prev[editingMajorType][editingMajorCat],
+          sub: updatedSub
+        }
+      }
+    }));
+
+    setNewSubName('');
+    showToast(`成功新增小分類「${newSubIcon} ${newSubName}」`);
+  };
+
+  const handleDeleteSubCategory = (subName) => {
+    const currentSubs = categories[editingMajorType][editingMajorCat]?.sub || [];
+    const updatedSub = currentSubs.filter(s => s.name !== subName);
+
+    setCategories(prev => ({
+      ...prev,
+      [editingMajorType]: {
+        ...prev[editingMajorType],
+        [editingMajorCat]: {
+          ...prev[editingMajorType][editingMajorCat],
+          sub: updatedSub
+        }
+      }
+    }));
+
+    showToast(`已刪除小分類「${subName}」`, 'info');
+  };
+
+  const handleAddCreditCard = (e) => {
+    e.preventDefault();
+    if (!newCardName.trim()) {
+      showToast('請輸入信用卡名稱！', 'error');
+      return;
+    }
+
+    if (creditCards.some(c => c.name === newCardName.trim())) {
+      showToast('已有同名的信用卡！', 'error');
+      return;
+    }
+
+    const newCard = {
+      id: `card-${Date.now()}`,
+      name: newCardName.trim(),
+      bank: newCardBank.trim() || '未指定銀行'
+    };
+
+    setCreditCards(prev => [...prev, newCard]);
+    setNewCardName('');
+    setNewCardBank('');
+    showToast(`已成功綁定信用卡「${newCard.name}」`);
+  };
+
+  const handleDeleteCreditCard = (id, name) => {
+    setCreditCards(prev => prev.filter(c => c.id !== id));
+    showToast(`已解綁信用卡「${name}」`, 'info');
+  };
+
+  const handleSaveRates = (e) => {
+    e.preventDefault();
+    const updatedCurrencies = currencies.map(c => ({
+      ...c,
+      rateToBase: parseFloat(editingRates[c.code]) || c.rateToBase
+    }));
+    setCurrencies(updatedCurrencies);
+    showToast('匯率設定已成功更新！');
+  };
+
+  const handleExportData = () => {
+    const dataPack = {
+      transactions,
+      categories,
+      creditCards,
+      currencies,
+      baseCurrencyCode,
+      version: 'ios-v2.0',
+      exportedAt: new Date().toISOString()
+    };
+    
+    const dataStr = JSON.stringify(dataPack, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `智繪記帳_iPhone備份_${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    showToast('備份完成！可傳至 iCloud 或 AirDrop 到新手機', 'success');
+  };
+
+  const getTransferCode = () => {
+    const dataPack = { transactions, categories, creditCards, currencies, baseCurrencyCode };
+    try {
+      return btoa(encodeURIComponent(JSON.stringify(dataPack)));
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const handleCopyTransferCode = () => {
+    const code = getTransferCode();
+    if (!code) {
+      showToast('資料過大，請改用 JSON 檔案備份儲存', 'error');
+      return;
+    }
+    navigator.clipboard.writeText(code);
+    showToast('已複製傳送代碼！可貼到 LINE / 備忘錄傳送至新 iPhone', 'success');
+  };
+
+  const handleImportFile = (e) => {
+    const fileReader = new FileReader();
+    if (e.target.files && e.target.files[0]) {
+      fileReader.readAsText(e.target.files[0], "UTF-8");
+      fileReader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          if (parsed.transactions && parsed.categories) {
+            setTransactions(parsed.transactions);
+            setCategories(parsed.categories);
+            if (parsed.creditCards) setCreditCards(parsed.creditCards);
+            if (parsed.currencies) setCurrencies(parsed.currencies);
+            if (parsed.baseCurrencyCode) setBaseCurrencyCode(parsed.baseCurrencyCode);
+            showToast('一鍵移轉資料成功！已同步還原所有歷史記錄', 'success');
+          } else {
+            showToast('無效的備份檔案規格', 'error');
+          }
+        } catch (err) {
+          showToast('解析備份檔案時發生錯誤', 'error');
+        }
+      };
+    }
+  };
+
+  const handleImportCode = () => {
+    if (!importString.trim()) {
+      showToast('請先輸入或貼上資料傳送代碼', 'error');
+      return;
+    }
+    try {
+      const decoded = JSON.parse(decodeURIComponent(atob(importString.trim())));
+      if (decoded.transactions && decoded.categories) {
+        setTransactions(decoded.transactions);
+        setCategories(decoded.categories);
+        if (decoded.creditCards) setCreditCards(decoded.creditCards);
+        if (decoded.currencies) setCurrencies(decoded.currencies);
+        if (decoded.baseCurrencyCode) setBaseCurrencyCode(decoded.baseCurrencyCode);
+        setImportString('');
+        showToast('代碼解析還原成功！資料已完全導入', 'success');
+      } else {
+        showToast('代碼結構不完整，請確保複製了完整編碼', 'error');
+      }
+    } catch (err) {
+      showToast('解析代碼失敗，格式不符或有缺失', 'error');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#EBE7E0] flex items-center justify-center p-0 sm:p-6 md:p-12 font-sans text-[#362C24]">
+      
+      {/* 擬真 iPhone 完美機身外殼 */}
+      <div className="w-full max-w-[430px] h-[932px] sm:h-[880px] bg-[#FAF7F2] sm:rounded-[50px] shadow-[0_25px_60px_-15px_rgba(74,60,49,0.15)] border-0 sm:border-[10px] border-[#2C302E] flex flex-col relative overflow-hidden">
+        
+        {/* 頂部劉海安全區 */}
+        <div className="hidden sm:flex absolute top-0 left-0 right-0 h-9 bg-transparent z-40 items-center justify-between px-8 text-xs font-black text-[#8A7B70] pointer-events-none">
+          <span>9:41</span>
+          <div className="w-28 h-5 bg-[#2C302E] rounded-b-2xl mx-auto -mt-0.5"></div>
+          <div className="flex items-center gap-1">
+            <span>📶</span>
+            <span>🔋</span>
+          </div>
+        </div>
+
+        {/* 劉海頂部安全距離補償 */}
+        <div className="h-6 sm:h-9 bg-transparent shrink-0"></div>
+
+        {/* 經典深栗米砂色滾動主內容區 */}
+        <div className="flex-1 overflow-y-auto px-5 pb-24 pt-2">
+          
+          {/* 精緻頂部 App 標題列 (雙下拉選單：年份與月份選擇器) */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              {/* 雙下拉選單：年份與月份選擇器 (高質感、無按鈕快速下拉) */}
+              <div className="flex items-center gap-1 bg-white border border-[#E6DFD5] px-2.5 py-1 rounded-full shadow-sm text-[10px] font-black text-[#4A3C31] uppercase tracking-[0.05em] mb-1">
+                <select 
+                  value={selectedMonth.split('-')[0]} 
+                  onChange={(e) => {
+                    const newYear = e.target.value;
+                    const currentMonth = selectedMonth.split('-')[1];
+                    setSelectedMonth(`${newYear}-${currentMonth}`);
+                    showToast(`已載入 ${newYear} 年記帳資料`, 'info');
+                  }}
+                  className="bg-transparent font-black cursor-pointer focus:outline-none pr-0.5 text-[10px] text-[#4A3C31]"
+                >
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                  <option value="2027">2027</option>
+                  <option value="2028">2028</option>
+                </select>
+                <span className="text-[#8A7B70] font-bold">/</span>
+                <select 
+                  value={selectedMonth.split('-')[1]} 
+                  onChange={(e) => {
+                    const newMonth = e.target.value;
+                    const currentYear = selectedMonth.split('-')[0];
+                    setSelectedMonth(`${currentYear}-${newMonth}`);
+                    showToast(`已切換至 ${newMonth} 月明細`, 'success');
+                  }}
+                  className="bg-transparent font-black cursor-pointer focus:outline-none pl-0.5 text-[10px] text-[#4A3C31]"
+                >
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(m => (
+                    <option key={m} value={m}>{m}月</option>
+                  ))}
+                </select>
+              </div>
+              <h2 className="font-serif italic text-4xl font-black text-[#4A3C31] tracking-tight leading-none pt-1">
+                WalletWatch
+              </h2>
+            </div>
+            
+            {/* 快捷備份按鈕 */}
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  setCurrentTab('settings');
+                  showToast('已進入設定中心，請往下滑動查看移轉選項', 'info');
+                }}
+                className="w-9 h-9 rounded-full bg-white border border-[#E6DFD5] flex items-center justify-center text-xs shadow-sm hover:scale-105 active:scale-95 transition"
+                title="換機移轉"
+              >
+                📲
+              </button>
+              <button 
+                onClick={handleExportData}
+                className="w-9 h-9 rounded-full bg-white border border-[#E6DFD5] flex items-center justify-center text-xs shadow-sm hover:scale-105 active:scale-95 transition"
+                title="即時備份"
+              >
+                💾
+              </button>
+            </div>
+          </div>
+
+          {/* Toast 提示條 */}
+          {toast && (
+            <div className="fixed top-14 left-1/2 -translate-x-1/2 w-[90%] max-w-[360px] z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-md bg-white/95 text-[#362C24] border-[#E6DFD5] animate-fade-in-down">
+              <span className="text-base">
+                {toast.type === 'success' ? '✨' : toast.type === 'error' ? '⚡' : '💡'}
+              </span>
+              <p className="text-xs font-black">{toast.message}</p>
+            </div>
+          )}
+
+          {/* ==========================================
+              TAB 1: 儀表板首頁 (DASHBOARD)
+              ========================================== */}
+          {currentTab === 'dashboard' && (
+            <div className="space-y-5">
+              
+              {/* 高質感極致粗體拿鐵可可資產卡片 */}
+              <div className="relative p-5 rounded-3xl bg-white border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.03)] overflow-hidden">
+                <p className="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest text-center mb-1">
+                  目前帳戶餘額 ({baseCurrency.name})
+                </p>
+                <h3 className="text-3.5xl font-serif italic font-black text-[#4A3C31] text-center tracking-tight mb-2">
+                  {formatBaseAmount(monthlyTotals.balance)}
+                </h3>
+                <div className="grid grid-cols-2 gap-2 border-t border-[#FAF7F2] pt-3 text-center">
+                  <div>
+                    <span className="text-[9px] font-black text-[#8A7B70] block">本月總收入</span>
+                    <span className="text-xs font-black text-[#5A8F76]">{formatBaseAmount(monthlyTotals.income)}</span>
+                  </div>
+                  <div className="border-l border-[#FAF7F2]">
+                    <span className="text-[9px] font-black text-[#8A7B70] block">本月總支出</span>
+                    <span className="text-xs font-black text-[#4A3C31]">{formatBaseAmount(monthlyTotals.expense)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 【全新功能】歷史月度消費對比看板 (Sparkline 條狀分析圖) */}
+              <div className="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
+                <div className="flex items-center justify-between mb-3.5 border-b border-[#FAF7F2] pb-2">
+                  <h3 className="text-xs font-black text-[#8A7B70] uppercase tracking-wider flex items-center gap-1.5">
+                    <span>📈</span> 歷史月度消費對比
+                  </h3>
+                  <span className="text-[9px] bg-[#FAF7F2] border border-[#E6DFD5] px-2 py-0.5 rounded-full font-black text-[#8A7B70]">
+                    僅統計支出
+                  </span>
+                </div>
+
+                {monthlyTrendStats.length === 0 ? (
+                  <div className="text-center py-6 text-[#8A7B70]">
+                    <span className="text-2xl">📊</span>
+                    <p className="text-[10px] font-black mt-1">尚無跨月消費數據</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {monthlyTrendStats.map(stat => {
+                      const barPercentage = Math.round((stat.amount / maxMonthlySpend) * 100);
+                      const isCurrentSelected = stat.month === selectedMonth;
+                      return (
+                        <div 
+                          key={stat.month} 
+                          onClick={() => {
+                            setSelectedMonth(stat.month);
+                            showToast(`已載入 ${stat.month.replace('-', ' 年 ')} 月明細`, 'success');
+                          }}
+                          className={`group p-2 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1.5 ${isCurrentSelected ? 'bg-[#FAF7F2] border-[#4A3C31]' : 'bg-transparent border-transparent hover:bg-slate-50'}`}
+                        >
+                          <div className="flex items-center justify-between text-xs font-black">
+                            <span className={isCurrentSelected ? 'text-[#4A3C31]' : 'text-[#8A7B70]'}>
+                              {stat.month.replace('-', ' / ')}
+                              {isCurrentSelected && <span className="ml-1.5 text-[8px] bg-[#4A3C31] text-white px-1.5 py-0.25 rounded">當前選擇</span>}
+                            </span>
+                            <span className="text-[#4A3C31]">{formatBaseAmount(stat.amount)}</span>
+                          </div>
+                          
+                          {/* 微型趨勢進度條 */}
+                          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-500 ${isCurrentSelected ? 'bg-[#4A3C31]' : 'bg-[#BCA38D] group-hover:bg-[#8A7B70]'}`}
+                              style={{ width: `${Math.max(4, barPercentage)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 優雅 SVG 經典焦糖圓餅圖分析 */}
+              <div className="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
+                <h3 className="text-xs font-black text-[#8A7B70] uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
+                  <span>📊</span> 本月支出類別占比
+                </h3>
+
+                {categoryExpenses.length === 0 || categoryExpenses.every(c => c.amount === 0) ? (
+                  <div className="text-center py-8 text-[#8A7B70]">
+                    <span className="text-3xl">☕</span>
+                    <p className="text-xs mt-1.5 font-bold">本月尚無任何支出記錄</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="w-24 h-24 shrink-0 relative">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#FAF7F2" strokeWidth="4"></circle>
+                        {donutSegments.map((segment) => {
+                          const strokeDasharray = `${segment.percentage} ${100 - segment.percentage}`;
+                          const strokeDashoffset = 100 - segment.start;
+                          return (
+                            <circle
+                              key={segment.name}
+                              cx="18"
+                              cy="18"
+                              r="15.915"
+                              fill="none"
+                              stroke={segment.color}
+                              strokeWidth="4"
+                              strokeDasharray={strokeDasharray}
+                              strokeDashoffset={strokeDashoffset}
+                              className="transition-all duration-500"
+                            />
+                          );
+                        })}
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-[9px] font-black text-[#8A7B70] leading-none">支出率</span>
+                        <span className="text-sm font-black text-[#4A3C31]">
+                          {monthlyTotals.income > 0 ? Math.round((monthlyTotals.expense / monthlyTotals.income) * 100) : 100}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 space-y-2">
+                      {categoryExpenses.slice(0, 3).map((cat, idx) => (
+                        <div key={cat.name} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-1.5 font-bold text-[#8A7B70]">
+                            <span 
+                              className="w-2.5 h-2.5 rounded-full" 
+                              style={{ backgroundColor: idx === 0 ? '#4A3C31' : idx === 1 ? '#8A7B70' : idx === 2 ? '#BCA38D' : '#E6DFD5' }}
+                            ></span>
+                            <span>{cat.name}</span>
+                          </div>
+                          <span className="font-black text-[#362C24]">{cat.percentage}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 信用卡累積消費看板 */}
+              <div className="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
+                <div className="flex items-center justify-between mb-3 border-b border-[#FAF7F2] pb-2">
+                  <h3 className="text-xs font-black text-[#8A7B70] uppercase tracking-wider flex items-center gap-1.5">
+                    <span>💳</span> 信用卡累積消費金額
+                  </h3>
+                  <span className="text-[10px] font-black text-[#5A8F76]">
+                    共 {creditCardExpenses.cards.filter(c => c.amount > 0).length} 張活躍卡
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {creditCardExpenses.cards.map(card => (
+                    <div key={card.name} className="flex items-center justify-between p-2.5 rounded-2xl bg-[#FAF7F2] border border-[#E6DFD5]/50">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#4A3C31] to-[#8A7B70] text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                          💳
+                        </div>
+                        <div>
+                          <p className="font-black text-xs text-[#362C24]">{card.name}</p>
+                          <p className="text-[9px] font-bold text-[#8A7B70]">{card.bank} • {card.txCount} 筆</p>
+                        </div>
+                      </div>
+                      <span className="font-black text-sm text-[#4A3C31]">
+                        {formatBaseAmount(card.amount)}
+                      </span>
+                    </div>
+                  ))}
+                  {creditCards.length === 0 && (
+                    <p className="text-center text-xs font-bold text-[#8A7B70] py-2">尚未綁定任何信用卡</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 最近明細 */}
+              <div className="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-black text-[#8A7B70] uppercase tracking-wider">本月最近交易</h3>
+                  <button 
+                    onClick={() => setCurrentTab('history')}
+                    className="text-[10px] font-black text-[#4A3C31] hover:underline"
+                  >
+                    查看全部明細
+                  </button>
+                </div>
+
+                <div className="relative pl-3 border-l-2 border-[#E6DFD5] space-y-4 py-1">
+                  {filteredTransactions.slice(0, 3).map(tx => {
+                    const majorDetails = categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
+                    return (
+                      <div key={tx.id} className="relative flex items-center justify-between p-2 rounded-2xl bg-[#FAF7F2] hover:bg-white border border-[#E6DFD5]/30 transition group">
+                        
+                        <span className="absolute -left-[18.5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#8A7B70] border-2 border-white shadow-sm"></span>
+
+                        <div className="flex items-center gap-2.5">
+                          <span className={`w-9 h-9 rounded-full flex items-center justify-center text-sm ${majorDetails.color} border shadow-sm shrink-0`}>
+                            <CategoryIcon name={tx.majorCategory} className="w-5 h-5" />
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-black text-xs text-[#362C24]">{tx.subCategory || tx.majorCategory}</p>
+                              <span className="text-[8px] bg-white border border-[#E6DFD5] px-1 py-0.25 rounded font-bold text-[#8A7B70]">{tx.paymentMethod}</span>
+                            </div>
+                            <p className="text-[9px] font-bold text-[#8A7B70] mt-0.5">{tx.date} {tx.note ? `• ${tx.note}` : ''}</p>
+                          </div>
+                        </div>
+
+                        {/* 修改與刪除雙核心操作區 */}
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <p className={`font-black text-xs ${tx.type === 'expense' ? 'text-[#4A3C31]' : 'text-[#5A8F76]'}`}>
+                              {tx.type === 'expense' ? '-' : '+'}
+                              {formatAmount(tx.amount, tx.currency)}
+                            </p>
+                            {tx.currency !== baseCurrencyCode && (
+                              <p className="text-[8px] font-bold text-[#8A7B70]">
+                                ≈ {formatBaseAmount(convertToBase(tx.amount, tx.currency))}
+                              </p>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleStartEdit(tx)}
+                              className="w-6 h-6 rounded-lg bg-white border border-[#E6DFD5] text-[#8A7B70] hover:text-[#4A3C31] hover:border-[#4A3C31] flex items-center justify-center text-[10px] cursor-pointer font-bold transition"
+                              title="直接修改"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTransaction(tx.id)}
+                              className="w-6 h-6 rounded-lg bg-white border border-rose-100 text-rose-300 hover:text-rose-600 hover:border-rose-400 flex items-center justify-center text-[10px] cursor-pointer font-bold transition"
+                              title="刪除"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredTransactions.length === 0 && (
+                    <p className="text-center text-xs font-bold text-[#8A7B70] py-4">本月尚未登錄任何帳目</p>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ==========================================
+              TAB 2: 記一筆 (ADD TRANSACTION - 高級毛玻璃鍵盤)
+              ========================================== */}
+          {currentTab === 'add' && (
+            <div className="space-y-4">
+              
+              <div className="flex bg-[#FFF5EE]/50 p-1 rounded-2xl border border-[#E6DFD5]">
+                <button
+                  type="button"
+                  onClick={() => setTxType('expense')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${txType === 'expense' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}`}
+                >
+                  💸 支出消費
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTxType('income')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${txType === 'income' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}`}
+                >
+                  💰 收入進帳
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">大類徽章選擇</span>
+                <div className="grid grid-cols-4 gap-2">
+                  {Object.keys(categories[txType] || {}).map(catName => {
+                    const catObj = categories[txType][catName];
+                    const isSelected = txMajorCategory === catName;
+                    return (
+                      <button
+                        key={catName}
+                        type="button"
+                        onClick={() => setTxMajorCategory(catName)}
+                        className={`py-2 rounded-2xl border transition-all flex flex-col items-center justify-center gap-1 ${isSelected ? 'border-[#4A3C31] bg-[#FAF7F2] scale-105 shadow-sm font-black text-[#4A3C31]' : 'border-[#E6DFD5]/30 bg-white hover:bg-slate-50 text-slate-600 font-bold'}`}
+                      >
+                        <span className={`w-8 h-8 rounded-full border flex items-center justify-center ${catObj.color} shadow-sm shrink-0`}>
+                          <CategoryIcon name={catName} className="w-4.5 h-4.5" />
+                        </span>
+                        <span className="text-[10px] font-black">{catName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">小分類選擇</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(categories[txType]?.[txMajorCategory]?.sub || []).map(subObj => {
+                    const isSelected = txSubCategory === subObj.name;
+                    return (
+                      <button
+                        key={subObj.name}
+                        type="button"
+                        onClick={() => setTxSubCategory(subObj.name)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-black border transition-all flex items-center gap-1.5 shadow-sm ${isSelected ? 'border-[#4A3C31] bg-[#4A3C31] text-white' : 'border-slate-100 bg-white text-slate-600'}`}
+                      >
+                        <span>{subObj.icon}</span>
+                        <span>{subObj.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 毛玻璃鍵盤 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest">記帳金額與幣別</span>
+                  <select
+                    value={txCurrency}
+                    onChange={(e) => setTxCurrency(e.target.value)}
+                    className="px-2 py-0.5 bg-white border border-[#E6DFD5] text-xs font-black rounded-lg text-[#4A3C31]"
+                  >
+                    {currencies.map(c => (
+                      <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="relative p-4 bg-gradient-to-b from-[#FAF7F2]/60 to-[#E6DFD5]/40 rounded-3xl overflow-hidden border border-white/60 shadow-inner">
+                  <div className="absolute top-2 left-1/3 w-20 h-20 bg-amber-200/20 rounded-full blur-2xl -z-10"></div>
+                  <div className="absolute bottom-6 right-1/4 w-24 h-24 bg-rose-200/10 rounded-full blur-2xl -z-10"></div>
+
+                  <div className="bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl p-3.5 mb-3 flex flex-col justify-end items-end min-h-[76px] shadow-sm">
+                    <span className="text-[8px] font-black text-[#8A7B70] self-start">AMOUNT ENTRY ({txCurrency})</span>
+                    <div 
+                      className="w-full text-right font-black text-[#362C24] whitespace-nowrap overflow-hidden transition-all duration-150 flex items-baseline justify-end"
+                      style={{ fontSize: amountFontSize, lineHeight: 1.1 }}
+                    >
+                      <span className="text-xl font-black text-[#4A3C31] mr-1.5 self-center">
+                        {currencies.find(c => c.code === txCurrency)?.symbol || '$'}
+                      </span>
+                      {txAmount || '0'}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 p-1.5 bg-white/30 backdrop-blur-xl border border-white/40 rounded-2xl shadow-md">
+                    {[
+                      { val: '1', label: '1' }, { val: '2', label: '2' }, { val: '3', label: '3' },
+                      { val: '4', label: '4' }, { val: '5', label: '5' }, { val: '6', label: '6' },
+                      { val: '7', label: '7' }, { val: '8', label: '8' }, { val: '9', label: '9' },
+                      { val: '.', label: '•' }, { val: '0', label: '0' }, { val: 'backspace', label: '⌫' }
+                    ].map(key => (
+                      <button
+                        key={key.val}
+                        type="button"
+                        onClick={() => handleKeyboardInput(key.val)}
+                        className={`h-11 flex items-center justify-center rounded-xl font-black text-lg text-[#362C24] transition-all duration-100 select-none cursor-pointer
+                          ${key.val === 'backspace' 
+                            ? 'bg-rose-500/10 hover:bg-rose-500/20 active:scale-90 border border-rose-500/20 text-rose-700' 
+                            : 'bg-white/50 hover:bg-white/70 border border-white/70 active:scale-95 shadow-sm'
+                          }
+                        `}
+                      >
+                        {key.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {txAmount && (
+                    <button
+                      type="button"
+                      onClick={() => handleKeyboardInput('clear')}
+                      className="mt-1.5 text-[9px] font-black text-[#8A7B70] hover:text-rose-600 transition flex items-center gap-1 mx-auto"
+                    >
+                      🗑️ 清除重寫
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black text-[#8A7B70] block">日期</span>
+                  <input
+                    type="date"
+                    required
+                    value={txDate}
+                    onChange={(e) => setTxDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none"
+                  />
+                </div>
+
+                {txType === 'expense' && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-[#8A7B70] block">付款方式</span>
+                    <select
+                      value={txPaymentMethod}
+                      onChange={(e) => setTxPaymentMethod(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none"
+                    >
+                      <option value="現金">💵 現金 / 帳戶</option>
+                      {creditCards.map(card => (
+                        <option key={card.id} value={card.name}>💳 {card.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-[#8A7B70] block">備註備忘 (選填)</span>
+                <input
+                  type="text"
+                  placeholder="例: 中午在摩斯漢堡聚餐"
+                  value={txNote}
+                  onChange={(e) => setTxNote(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-[#E6DFD5] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#4A3C31]"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddTransaction}
+                className="w-full py-3 rounded-2xl font-black text-white text-xs shadow-lg transition-all transform active:scale-95 bg-[#4A3C31] hover:bg-[#342921]"
+              >
+                確認送出此筆交易
+              </button>
+            </div>
+          )}
+
+          {/* ==========================================
+              TAB 3: 歷史明細與篩選 (HISTORY)
+              ========================================== */}
+          {currentTab === 'history' && (
+            <div className="space-y-4">
+              
+              <div className="bg-white p-4 rounded-3xl border border-[#E6DFD5] shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="text-xs font-black text-slate-700 flex items-center gap-1">
+                    <span>🔍</span> 篩選帳目
+                  </span>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="px-2.5 py-1 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-[#4A3C31] font-black"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    id="historyType"
+                    className="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black"
+                  >
+                    <option value="all">所有類型</option>
+                    <option value="expense">支出明細</option>
+                    <option value="income">收入明細</option>
+                  </select>
+
+                  <select
+                    id="historyPayment"
+                    className="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black"
+                  >
+                    <option value="all">所有付款</option>
+                    <option value="現金">僅現金 / 帳戶</option>
+                    {creditCards.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* 歷史明細明細卡片 */}
+              <div className="space-y-2">
+                {filteredTransactions.map(tx => {
+                  const majorDetails = categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
+                  return (
+                    <div key={tx.id} className="flex items-center justify-between p-3 rounded-2xl bg-white border border-[#E6DFD5] shadow-sm hover:scale-[1.01] transition-transform">
+                      <div className="flex items-center gap-2.5">
+                        <span className={`w-9 h-9 rounded-full flex items-center justify-center text-sm ${majorDetails.color} border shadow-sm shrink-0`}>
+                          <CategoryIcon name={tx.majorCategory} className="w-5 h-5" />
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <p className="font-black text-xs text-[#362C24]">{tx.subCategory}</p>
+                            <span className="text-[8px] bg-slate-100 text-[#8A7B70] px-1 py-0.25 rounded font-black">
+                              {tx.paymentMethod}
+                            </span>
+                          </div>
+                          <p className="text-[9px] font-bold text-[#8A7B70] leading-none mt-1">{tx.date} {tx.note ? `• ${tx.note}` : ''}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <p className={`font-black text-xs ${tx.type === 'expense' ? 'text-[#4A3C31]' : 'text-[#5A8F76]'}`}>
+                            {tx.type === 'expense' ? '-' : '+'}
+                            {formatAmount(tx.amount, tx.currency)}
+                          </p>
+                          {tx.currency !== baseCurrencyCode && (
+                            <p className="text-[8px] font-bold text-[#8A7B70]">
+                              ≈ {formatBaseAmount(convertToBase(tx.amount, tx.currency))}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* 修改與刪除按鈕 */}
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => handleStartEdit(tx)}
+                            className="w-6 h-6 rounded-lg bg-[#FAF7F2] border border-[#E6DFD5] text-[#8A7B70] hover:text-[#4A3C31] flex items-center justify-center text-[10px] cursor-pointer font-black transition"
+                            title="修改"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                            className="w-6 h-6 rounded-lg bg-[#FAF7F2] border border-rose-100 text-rose-300 hover:text-rose-500 flex items-center justify-center text-[10px] cursor-pointer font-black transition"
+                            title="刪除"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredTransactions.length === 0 && (
+                  <div className="text-center py-12 text-[#8A7B70] bg-white rounded-3xl border border-[#E6DFD5]">
+                    <span className="text-3xl">📭</span>
+                    <p className="text-xs mt-1.5 font-black">沒有符合篩選條件的交易</p>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
+          {/* ==========================================
+              TAB 4: 分類管理 (CATEGORIES)
+              ========================================== */}
+          {currentTab === 'categories' && (
+            <div className="space-y-4">
+              
+              <div className="bg-white p-4 rounded-3xl border border-[#E6DFD5] shadow-sm space-y-3">
+                <h3 className="text-xs font-black text-[#4A3C31] uppercase tracking-wider">
+                  📂 自訂小分類
+                </h3>
+
+                <form onSubmit={handleAddSubCategory} className="space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={editingMajorType}
+                      onChange={(e) => {
+                        setEditingMajorType(e.target.value);
+                        setEditingMajorCat(e.target.value === 'expense' ? '飲食' : '收入');
+                      }}
+                      className="px-2 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black"
+                    >
+                      <option value="expense">支出類別</option>
+                      <option value="income">收入類別</option>
+                    </select>
+
+                    <select
+                      value={editingMajorCat}
+                      onChange={(e) => setEditingMajorCat(e.target.value)}
+                      className="px-2 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black"
+                    >
+                      {Object.keys(categories[editingMajorType] || {}).map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      required
+                      maxLength="8"
+                      placeholder="小分類名稱"
+                      value={newSubName}
+                      onChange={(e) => setNewSubName(e.target.value)}
+                      className="col-span-2 px-3 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-bold"
+                    />
+
+                    <input
+                      type="text"
+                      required
+                      maxLength="2"
+                      placeholder="代表符"
+                      value={newSubIcon}
+                      onChange={(e) => setNewSubIcon(e.target.value)}
+                      className="px-2 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-center font-black"
+                    />
+                  </div>
+
+                  <div className="flex justify-between p-1.5 bg-slate-50 rounded-lg overflow-x-auto gap-1">
+                    {['🍕', '🚇', '🍿', '🩹', '👟', '🧴', '🧹', '🐶', '📚', '🏡'].map(emoji => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setNewSubIcon(emoji)}
+                        className="w-6 h-6 shrink-0 text-xs rounded hover:bg-white active:scale-90 flex items-center justify-center border border-transparent hover:border-slate-100"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2 bg-[#4A3C31] hover:bg-[#342921] text-white font-black text-xs rounded-xl shadow-sm transition cursor-pointer"
+                  >
+                    確定新增小分類
+                  </button>
+                </form>
+              </div>
+
+              <div className="space-y-3">
+                <span className="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">分類樹狀一覽</span>
+                
+                {Object.entries(categories.expense).map(([catName, catObj]) => (
+                  <div key={catName} className="p-3 bg-white rounded-3xl border border-[#E6DFD5] shadow-sm">
+                    <div className="flex items-center gap-1.5 border-b border-slate-100 pb-1.5 mb-2">
+                      <span className={`w-6 h-6 rounded-md flex items-center justify-center text-xs ${catObj.color} border`}>
+                        <CategoryIcon name={catName} className="w-3.5 h-3.5" />
+                      </span>
+                      <span className="font-black text-xs text-[#4A3C31]">{catName} (支出)</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {catObj.sub.map(s => (
+                        <div key={s.name} className="group pl-2.5 pr-1.5 py-1 rounded-full text-[10px] font-black border border-[#E6DFD5]/50 bg-[#FAF7F2] flex items-center gap-1">
+                          <span>{s.icon} {s.name}</span>
+                          <button
+                            onClick={() => {
+                              setEditingMajorType('expense');
+                              setEditingMajorCat(catName);
+                              handleDeleteSubCategory(s.name);
+                            }}
+                            className="w-3.5 h-3.5 rounded-full bg-slate-200 hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center text-[8px] cursor-pointer font-black"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          )}
+
+          {/* ==========================================
+              TAB 5: 設定與 iPhone 完美移轉 (SETTINGS)
+              ========================================== */}
+          {currentTab === 'settings' && (
+            <div className="space-y-4">
+              
+              <div className="bg-[#FAF7F2] p-4 rounded-3xl border border-[#E6DFD5] shadow-sm space-y-3 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-200/5 rounded-full blur-2xl -z-10"></div>
+                <h3 className="text-xs font-black text-[#4A3C31] flex items-center gap-1.5">
+                  <span>📲</span> iPhone 完美移轉與備份中心
+                </h3>
+                <p className="text-[10px] text-[#8A7B70] font-bold leading-normal">
+                  此網頁採用極簡無帳號儲存。若您換新 iPhone 或清理暫存時，可使用以下方案，1 秒還原所有交易和設定。
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setShowMigrationGuide(!showMigrationGuide)}
+                  className="text-[10px] font-black text-[#4A3C31] underline flex items-center gap-1 cursor-pointer"
+                >
+                  {showMigrationGuide ? '隱藏 iPhone 還原指南' : '👉 點此看：如何用 AirDrop 或 iCloud 換機？'}
+                </button>
+
+                {showMigrationGuide && (
+                  <div className="p-3 bg-white rounded-2xl text-[9px] text-[#8A7B70] space-y-1.5 border border-[#E6DFD5] leading-relaxed font-bold">
+                    <p className="font-black text-[#4A3C31]">💡 iCloud / AirDrop 完美換機步驟：</p>
+                    <p>1. 在 <strong>舊手機</strong> 點擊下方【導出資料備份檔】。</p>
+                    <p>2. 下載時，iOS 會詢問，選擇將其儲存到【檔案 App / iCloud 雲端】。</p>
+                    <p>3. 您也可以直接在檔案長按選擇【共享】，透過 <strong>AirDrop (投送)</strong> 傳給新 iPhone。</p>
+                    <p>4. 在 <strong>新手機</strong> 開啟網頁，於此頁面點擊【導入備份檔】讀取該檔案，即刻全數移轉！</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    onClick={handleExportData}
+                    className="py-2.5 px-3 bg-white border border-[#E6DFD5] text-[#4A3C31] font-black text-xs rounded-2xl shadow-sm hover:bg-slate-50 active:scale-95 transition cursor-pointer"
+                  >
+                    📦 導出備份檔案
+                  </button>
+
+                  <label className="py-2.5 px-3 bg-[#4A3C31] hover:bg-[#342921] text-white font-black text-xs rounded-2xl shadow-sm text-center cursor-pointer active:scale-95 transition block">
+                    📥 導入備份檔案
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleImportFile}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                <div className="border-t border-slate-200/60 pt-3 space-y-2">
+                  <h4 className="text-[10px] font-black text-[#4A3C31]">📋 方案二：快傳代碼移轉 (不需下載檔案)</h4>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={handleCopyTransferCode}
+                      className="py-1.5 px-2.5 bg-white border border-[#E6DFD5] text-[#4A3C31] text-[10px] font-black rounded-xl active:scale-95 transition cursor-pointer"
+                    >
+                      複製轉移代碼
+                    </button>
+                    <span className="text-[9px] font-bold text-[#8A7B70] self-center">複製後可用 LINE 發給新手機</span>
+                  </div>
+
+                  <div className="space-y-1.5 mt-2">
+                    <textarea
+                      placeholder="在新手機上，將舊手機傳過來的代碼貼在此處..."
+                      value={importString}
+                      onChange={(e) => setImportString(e.target.value)}
+                      className="w-full h-14 p-2 bg-white border border-[#E6DFD5] rounded-xl text-[9px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#4A3C31] font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleImportCode}
+                      className="w-full py-1.5 bg-[#4A3C31] text-white text-[10px] font-black rounded-xl active:scale-95 transition cursor-pointer"
+                    >
+                      確認讀取代碼還原
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 信用卡綁定面板 */}
+              <div className="bg-white p-4 rounded-3xl border border-[#E6DFD5] shadow-sm flex flex-col">
+                <h3 className="font-black text-[#4A3C31] text-xs border-b border-slate-100 pb-2 mb-3">
+                  💳 綁定新信用卡
+                </h3>
+
+                <form onSubmit={handleAddCreditCard} className="space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      required
+                      placeholder="卡片名稱 (如 富邦J卡)"
+                      value={newCardName}
+                      onChange={(e) => setNewCardName(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-xs font-bold"
+                    />
+                    <input
+                      type="text"
+                      placeholder="發卡銀行 (如 台北富邦)"
+                      value={newCardBank}
+                      onChange={(e) => setNewCardBank(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-xs font-bold"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-2 bg-[#4A3C31] hover:bg-[#342921] text-white font-black text-xs rounded-xl shadow-sm transition cursor-pointer"
+                  >
+                    新增信用卡
+                  </button>
+                </form>
+
+                {creditCards.length > 0 && (
+                  <div className="mt-3.5 space-y-2">
+                    <span className="text-[9px] font-black text-[#8A7B70] uppercase tracking-widest block">現有綁定卡片</span>
+                    {creditCards.map(card => (
+                      <div key={card.id} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 text-[11px] font-bold">
+                        <span className="font-black text-[#362C24]">{card.name}</span>
+                        <button
+                          onClick={() => handleDeleteCreditCard(card.id, card.name)}
+                          className="text-rose-500 hover:underline font-black cursor-pointer"
+                        >
+                          解綁
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 基準匯率編輯 */}
+              <div className="bg-white p-4 rounded-3xl border border-[#E6DFD5] shadow-sm">
+                <h3 className="font-black text-[#4A3C31] text-xs border-b border-slate-100 pb-2 mb-3">
+                  💱 匯率與基準幣設定
+                </h3>
+                
+                <form onSubmit={handleSaveRates} className="space-y-3">
+                  {currencies.map(curr => {
+                    if (curr.code === 'TWD') return null;
+                    return (
+                      <div key={curr.code} className="flex items-center justify-between text-xs gap-2 font-black">
+                        <span className="font-black text-[#362C24]">{curr.code} ({curr.name})</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-400">1 =</span>
+                          <input
+                            type="number"
+                            step="any"
+                            required
+                            value={editingRates[curr.code] || ''}
+                            onChange={(e) => setEditingRates({
+                              ...editingRates,
+                              [curr.code]: e.target.value
+                            })}
+                            className="w-20 text-right px-2 py-1 bg-[#FAF7F2] border border-[#E6DFD5] rounded font-black"
+                          />
+                          <span className="text-slate-400">NTD</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="submit"
+                    className="w-full py-2 bg-[#4A3C31] hover:bg-[#342921] text-white font-black text-xs rounded-xl shadow-sm transition cursor-pointer"
+                  >
+                    更新保存匯率
+                  </button>
+                </form>
+              </div>
+
+            </div>
+          )}
+
+        </div>
+
+        {/* ==========================================
+            【修改模組】iOS 抽屜彈出式交易修改面板 (Slide-up Edit Sheet)
+            ========================================== */}
+        {editingTx && (
+          <div className="absolute inset-0 bg-black/60 z-50 flex items-end justify-center transition-opacity duration-300">
+            <div className="w-full bg-[#FAF7F2] rounded-t-[36px] max-h-[85%] overflow-y-auto p-6 border-t border-[#E6DFD5] space-y-5 animate-slide-up shadow-[0_-10px_35px_rgba(74,60,49,0.25)]">
+              
+              {/* 彈出層頭部 */}
+              <div className="flex items-center justify-between border-b border-[#E6DFD5] pb-3">
+                <h3 className="font-serif italic text-2xl font-black text-[#4A3C31]">
+                  修改交易明細
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setEditingTx(null)}
+                  className="w-8 h-8 rounded-full bg-white border border-[#E6DFD5] flex items-center justify-center text-xs font-black shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* 修改欄位 Form */}
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                
+                {/* 類型切換 */}
+                <div className="flex bg-[#FFF5EE]/50 p-1 rounded-2xl border border-[#E6DFD5]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditType('expense');
+                      setEditMajorCategory('飲食');
+                    }}
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${editType === 'expense' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}`}
+                  >
+                    💸 支出消費
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditType('income');
+                      setEditMajorCategory('收入');
+                    }}
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all ${editType === 'income' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}`}
+                  >
+                    💰 收入進帳
+                  </button>
+                </div>
+
+                {/* 大分類選擇 */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改大分類</span>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {Object.keys(categories[editType] || {}).map(catName => {
+                      const catObj = categories[editType][catName];
+                      const isSelected = editMajorCategory === catName;
+                      return (
+                        <button
+                          key={catName}
+                          type="button"
+                          onClick={() => setEditMajorCategory(catName)}
+                          className={`py-1.5 rounded-xl border transition-all flex flex-col items-center justify-center gap-0.5 ${isSelected ? 'border-[#4A3C31] bg-white scale-105 shadow-sm font-black text-[#4A3C31]' : 'border-[#E6DFD5]/30 bg-white/60 text-slate-500 font-bold'}`}
+                        >
+                          <span className={`w-6 h-6 rounded-full border flex items-center justify-center ${catObj.color} text-xs shrink-0`}>
+                            <CategoryIcon name={catName} className="w-3.5 h-3.5" />
+                          </span>
+                          <span className="text-[9px] font-black">{catName}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 小分類選擇 */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改小分類</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(categories[editType]?.[editMajorCategory]?.sub || []).map(subObj => {
+                      const isSelected = editSubCategory === subObj.name;
+                      return (
+                        <button
+                          key={subObj.name}
+                          type="button"
+                          onClick={() => setEditSubCategory(subObj.name)}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-black border transition-all flex items-center gap-1 shadow-sm ${isSelected ? 'border-[#4A3C31] bg-[#4A3C31] text-white' : 'border-slate-100 bg-white text-slate-600'}`}
+                        >
+                          <span>{subObj.icon}</span>
+                          <span>{subObj.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 貨幣與金額 */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-[#8A7B70] block">幣別</span>
+                    <select
+                      value={editCurrency}
+                      onChange={(e) => setEditCurrency(e.target.value)}
+                      className="w-full px-2 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-[#4A3C31]"
+                    >
+                      {currencies.map(c => (
+                        <option key={c.code} value={c.code}>{c.code}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <span className="text-[10px] font-black text-[#8A7B70] block">金額</span>
+                    <input
+                      type="number"
+                      required
+                      step="any"
+                      placeholder="修改金額"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-[#4A3C31] focus:ring-1 focus:ring-[#4A3C31] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 日期與支付載具 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-[#8A7B70] block">交易日期</span>
+                    <input
+                      type="date"
+                      required
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none"
+                    />
+                  </div>
+
+                  {editType === 'expense' ? (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-black text-[#8A7B70] block">支付管道</span>
+                      <select
+                        value={editPaymentMethod}
+                        onChange={(e) => setEditPaymentMethod(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none"
+                      >
+                        <option value="現金">💵 現金 / 帳戶</option>
+                        {creditCards.map(card => (
+                          <option key={card.id} value={card.name}>💳 {card.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-black text-[#8A7B70] block">管道</span>
+                      <div className="w-full px-2.5 py-2.5 bg-[#FAF7F2] border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-400">
+                        現金入帳
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 備註 */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black text-[#8A7B70] block">備註欄</span>
+                  <input
+                    type="text"
+                    placeholder="點擊修改備註..."
+                    value={editNote}
+                    onChange={(e) => setEditNote(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#4A3C31]"
+                  />
+                </div>
+
+                {/* 送出與取消 */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTx(null)}
+                    className="w-full py-2.5 border border-[#E6DFD5] bg-white rounded-2xl font-black text-[#8A7B70] text-xs shadow-sm hover:bg-slate-50 active:scale-95 transition cursor-pointer"
+                  >
+                    放棄修改
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-[#4A3C31] text-white rounded-2xl font-black text-xs shadow-lg hover:bg-[#342921] active:scale-95 transition cursor-pointer"
+                  >
+                    儲存更新
+                  </button>
+                </div>
+
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* 擬真 iPhone 觸控條安全區 */}
+        <div className="hidden sm:block absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#2C302E] rounded-full pointer-events-none z-40"></div>
+
+        {/* 底部 iOS 經典扁平雙色調圖標導覽列 (儀表板置中加大) */}
+        <nav className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-[#E6DFD5]/80 py-2.5 shadow-lg z-30 px-3 flex justify-around items-end">
+          
+          {/* 1. 歷史明細 */}
+          <button
+            onClick={() => setCurrentTab('history')}
+            className={`flex flex-col items-center gap-1 transition-all duration-150 cursor-pointer ${currentTab === 'history' ? 'scale-105 font-black text-[#4A3C31]' : 'text-slate-400 hover:text-slate-600 font-bold'}`}
+          >
+            <div className={`p-1.5 rounded-full ${currentTab === 'history' ? 'bg-[#4A3C31]/10' : 'bg-transparent'}`}>
+              <TabIcon name="history" active={currentTab === 'history'} />
+            </div>
+            <span className="text-[9px]">歷史明細</span>
+          </button>
+
+          {/* 2. 記一筆 */}
+          <button
+            onClick={() => setCurrentTab('add')}
+            className={`flex flex-col items-center gap-1 transition-all duration-150 cursor-pointer ${currentTab === 'add' ? 'scale-105 font-black text-[#4A3C31]' : 'text-slate-400 hover:text-slate-600 font-bold'}`}
+          >
+            <div className={`p-1.5 rounded-full ${currentTab === 'add' ? 'bg-[#4A3C31]/10' : 'bg-transparent'}`}>
+              <TabIcon name="add" active={currentTab === 'add'} />
+            </div>
+            <span className="text-[9px]">記一筆</span>
+          </button>
+
+          {/* 3. 儀表板 (置中且放大的立體突出按鈕) */}
+          <button
+            onClick={() => setCurrentTab('dashboard')}
+            className="flex flex-col items-center gap-0.5 transition-all duration-150 cursor-pointer -translate-y-3.5 relative z-40"
+          >
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-md transition-all border-4 border-[#FAF7F2] ${currentTab === 'dashboard' ? 'bg-[#4A3C31] text-[#FAF7F2] shadow-[0_6px_15px_rgba(74,60,49,0.3)] scale-110' : 'bg-white hover:bg-slate-50 border-[#E6DFD5] text-[#8A7B70]'}`}>
+              <TabIcon 
+                name="dashboard" 
+                active={currentTab === 'dashboard'} 
+                stroke={currentTab === 'dashboard' ? "#FAF7F2" : "#8A7B70"} 
+                className="w-7 h-7" 
+              />
+            </div>
+            <span className={`text-[9px] font-black ${currentTab === 'dashboard' ? 'text-[#4A3C31]' : 'text-[#8A7B70]'}`}>儀表板</span>
+          </button>
+
+          {/* 4. 分類管理 */}
+          <button
+            onClick={() => setCurrentTab('categories')}
+            className={`flex flex-col items-center gap-1 transition-all duration-150 cursor-pointer ${currentTab === 'categories' ? 'scale-105 font-black text-[#4A3C31]' : 'text-slate-400 hover:text-slate-600 font-bold'}`}
+          >
+            <div className={`p-1.5 rounded-full ${currentTab === 'categories' ? 'bg-[#4A3C31]/10' : 'bg-transparent'}`}>
+              <TabIcon name="categories" active={currentTab === 'categories'} />
+            </div>
+            <span className="text-[9px]">分類管理</span>
+          </button>
+
+          {/* 5. 移轉中心 */}
+          <button
+            onClick={() => setCurrentTab('settings')}
+            className={`flex flex-col items-center gap-1 transition-all duration-150 cursor-pointer ${currentTab === 'settings' ? 'scale-105 font-black text-[#4A3C31]' : 'text-slate-400 hover:text-slate-600 font-bold'}`}
+          >
+            <div className={`p-1.5 rounded-full ${currentTab === 'settings' ? 'bg-[#4A3C31]/10' : 'bg-transparent'}`}>
+              <TabIcon name="settings" active={currentTab === 'settings'} />
+            </div>
+            <span className="text-[9px]">移轉中心</span>
+          </button>
+        </nav>
+
+      </div>
+    </div>
+  );
+}
