@@ -33,7 +33,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700..950;1,700..950&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;950&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #EBE7E0; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .font-serif { font-family: 'Playfair Display', serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -65,10 +65,10 @@
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-0 sm:p-6 md:p-12 text-[#362C24]">
+<body class="flex items-center justify-center min-h-screen p-0 sm:p-6 md:p-12 text-[#362C24] bg-[#FAF7F2] sm:bg-[#EBE7E0]">
 
     <!-- 擬真 iPhone 完美機身外殼 (h-[100dvh] 完美確保手機端絕不溢出螢幕) -->
-    <div class="w-full max-w-[430px] h-[100dvh] sm:h-[880px] bg-[#FAF7F2] sm:rounded-[50px] shadow-[0_25px_60px_-15px_rgba(74,60,49,0.15)] border-0 sm:border-[10px] border-[#2C302E] flex flex-col relative overflow-hidden">
+    <div class="w-full max-w-[430px] h-[100dvh] sm:h-[880px] bg-[#FAF7F2] sm:rounded-[50px] shadow-none sm:shadow-[0_25px_60px_-15px_rgba(74,60,49,0.15)] border-0 sm:border-[10px] border-[#2C302E] flex flex-col relative overflow-hidden">
         
         <!-- 頂部劉海安全區 -->
         <div class="hidden sm:flex absolute top-0 left-0 right-0 h-9 bg-transparent z-40 items-center justify-between px-8 text-xs font-black text-[#8A7B70] pointer-events-none">
