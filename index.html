@@ -7,6 +7,15 @@
     <title>WalletWatch</title>
     
     <!-- ==========================================
+        LINE / Facebook / Social Media 社群分享卡片預覽設定 (Open Graph)
+        ========================================== -->
+    <meta property="og:title" content="WalletWatch">
+    <meta property="og:description" content="別讓錢包破了洞，Wallet Watch 幫你盯緊每筆心動。">
+    <!-- 設定傳送網址至 LINE 時，卡片上要呈現的預覽縮圖 (直接套用您的專屬 APP 圖示) -->
+    <meta property="og:image" content="https://cdn.phototourl.com/free/2026-06-07-c4d4f5b3-892d-4895-a465-8178bd9246da.png">
+    <meta property="og:type" content="website">
+    
+    <!-- ==========================================
         iOS (iPhone / iPad) 加入主畫面專用 PWA 增強設定
         ========================================== -->
     <!-- 1. 設定主畫面 APP 名稱 -->
@@ -275,6 +284,7 @@
             return showSymbol ? `${symbol} ${formatted}` : formatted;
         }
 
+        // --- 格式化基本金額 ---
         function formatBaseAmount(amount) {
             return formatAmount(amount, window.state.baseCurrencyCode);
         }
@@ -875,7 +885,7 @@
                             <div class="absolute top-2 left-1/3 w-20 h-20 bg-amber-200/20 rounded-full blur-2xl -z-10"></div>
                             
                             <!-- 金額與即時算式顯示螢幕 -->
-                            <div class="bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl p-3.5 mb-3 flex flex-col justify-end items-end min-h-[82px] shadow-sm">
+                            <div class="bg-white/50 backdrop-blur-md border border-[#E6DFD5] rounded-2xl p-3.5 mb-3 flex flex-col justify-end items-end min-h-[82px] shadow-sm">
                                 <span class="text-[8px] font-black text-[#8A7B70] self-start">EXPRESSION ENTRY (${window.state.txCurrency})</span>
                                 <div class="w-full text-right font-black text-[#362C24] whitespace-nowrap overflow-hidden flex items-baseline justify-end" style="font-size: ${displayFontSize}; line-height: 1.1">
                                     <span class="text-lg font-black text-[#4A3C31] mr-1.5 self-center">${currentCurrencySymbol}</span>
@@ -1150,13 +1160,13 @@
                         </div>
 
                         <div class="grid grid-cols-2 gap-2">
-                            <select onchange="setHistoryFilter('type', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
+                            <select onchange="setHistoryFilter('type', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
                                 <option value="all" ${window.state.filterType === 'all' ? 'selected' : ''}>所有類型</option>
                                 <option value="expense" ${window.state.filterType === 'expense' ? 'selected' : ''}>支出明細</option>
                                 <option value="income" ${window.state.filterType === 'income' ? 'selected' : ''}>收入明細</option>
                             </select>
 
-                            <select onchange="setHistoryFilter('payment', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
+                            <select onchange="setHistoryFilter('payment', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
                                 <option value="all" ${window.state.filterPayment === 'all' ? 'selected' : ''}>所有付款</option>
                                 <option value="現金" ${window.state.filterPayment === '現金' ? 'selected' : ''}>僅現金 / 帳戶</option>
                                 ${cardOptions}
@@ -1240,7 +1250,7 @@
                             </div>
 
                             <div class="grid grid-cols-3 gap-2">
-                                <input type="text" required maxLength="8" placeholder="小分類名稱" value="${window.state.newSubName}" oninput="setNewSubName(this.value)" class="col-span-2 px-3 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-bold focus:outline-none">
+                                <input type="text" required maxLength="8" placeholder="小分類名稱" value="${window.state.newSubName}" oninput="setNewSubName(this.value)" class="col-span-2 px-3 py-1.5 text-xs bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-bold focus:outline-none">
                                 <input type="text" required maxLength="2" placeholder="代表符" value="${window.state.newSubIcon}" oninput="setNewSubIcon(this.value)" class="px-2 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-center font-black focus:outline-none">
                             </div>
 
