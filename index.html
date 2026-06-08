@@ -16,7 +16,7 @@
     <meta property="og:type" content="website">
     
     <!-- ==========================================
-        iOS (iPhone / iPad) 加入主畫面專用 PWA 增強設定
+        iOS (iPhone / iPad) 加入主畫面專用 PWA 增增設定
         ========================================== -->
     <!-- 1. 設定主畫面 APP 名稱 -->
     <meta name="apple-mobile-web-app-title" content="WalletWatch">
@@ -70,7 +70,7 @@
         
         /* 修正加入主畫面後的 iOS 安全區適配，避免導覽列被 Home Indicator 遮擋（將安全襯距向上調高，防遮擋，並微調更靠近底線） */
         .safe-bottom {
-            padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px)) !important;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
         }
         
         /* iOS 原生級滾動襯距：最佳化縮小頂部留白，緊湊且避開狀態列與瀏海 */
@@ -233,7 +233,7 @@
                 '服裝': { icon: 'clothing', color: 'bg-[#F3EBE9] text-[#7E5C54] border-[#E6D7D3]', sub: [{ name: '衣服', icon: '👚' }, { name: '鞋包', icon: '👟' }] },
                 '美妝': { icon: 'beauty', color: 'bg-[#F5ECEF] text-[#865F6C] border-[#E9D7DC]', sub: [{ name: '保養品', icon: '🧴' }, { name: '彩妝', icon: '💅' }] },
                 '居家': { icon: 'home', color: 'bg-[#F2ECE4] text-[#735A42] border-[#E4D9CE]', sub: [{ name: '房租/房貸', icon: '🏠' }, { name: '水電瓦斯', icon: '⚡' }, { name: '居家修繕', icon: '🛠️' }, { name: '家具家飾', icon: '🛋️' }] },
-                '其他': { icon: 'others', color: 'bg-[#F4F1EC] text-[#6C6962] border-[#E5E1D8]', sub: [{ name: '日常雜貨', icon: '🧹' }, { name: '手機費', icon: '📱' }] }
+                '其他': { icon: 'others', color: 'bg-[#F4F1EC] text-[#6C6962] border-[#E5E1D8]', sub: [{ name: '日常雜雜', icon: '🧹' }, { name: '手機費', icon: '📱' }] }
             },
             income: {
                 '收入': { icon: 'income', color: 'bg-[#EAF2ED] text-[#5A8F76] border-[#D5E6DC]', sub: [{ name: '正職薪資', icon: '💼' }, { name: '兼職/外快', icon: '🪙' }, { name: '投資回報', icon: '📈' }] }
@@ -260,7 +260,7 @@
             ];
         }
 
-        // --- 全域應用狀態 ---
+        // --- 全域應用狀態 (追加 selectedDay 儲存當日選定) ---
         window.state = {
             transactions: JSON.parse(localStorage.getItem('ios_budget_transactions')) || getInitialTransactions(),
             categories: JSON.parse(localStorage.getItem('ios_budget_categories')) || DEFAULT_CATEGORIES,
@@ -269,6 +269,7 @@
             baseCurrencyCode: 'TWD',
             currentTab: 'dashboard',
             selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+            selectedDay: '', // 當前選定的月曆日期 
             
             // 記帳狀態 (支援算式)
             txType: 'expense',
@@ -368,8 +369,8 @@
             const icon = type === 'success' ? '✨' : type === 'error' ? '⚡' : '💡';
             toastEl.innerHTML = `
                 <span class="text-base">${icon}</span>
-                <p class="text-xs font-black">${message}</p>
-            `;
+                <p class="text-xs font-black">{message}</p>
+            `.replace('{message}', message);
             toastEl.classList.remove('hidden');
             setTimeout(() => {
                 toastEl.classList.add('hidden');
@@ -436,6 +437,7 @@
             }
         }
 
+        // 💡 補回在先前更新中遺失的 getTabIcon 函數，解決 ReferenceError 問題
         function getTabIcon(name, active, stroke, className = "w-6 h-6 transition-colors") {
             const strokeColor = stroke || (active ? "#4A3C31" : "#A39385");
             const fillOpacity = active ? "0.2" : "0.05";
@@ -1199,21 +1201,146 @@
         };
 
         // ==========================================
-        // TAB 3: 歷史明細與篩選 (HISTORY)
+        // TAB 3: 歷史明細與篩選 (HISTORY) -> 🎛️ 升級為互動式大氣大地色月曆視圖 🎛️
         // ==========================================
         function renderHistory(container) {
             if (!window.state.filterType) window.state.filterType = 'all';
             if (!window.state.filterPayment) window.state.filterPayment = 'all';
 
-            const filtered = window.state.transactions.filter(tx => {
-                const matchMonth = tx.date.startsWith(window.state.selectedMonth);
+            const [year, month] = window.state.selectedMonth.split('-');
+            const yearNum = parseInt(year);
+            const monthNum = parseInt(month);
+            const monthStr = String(monthNum).padStart(2, '0');
+
+            // 💡 邏輯保護：若無選定當日、或月份不符合當前月份，則動態同步今天或當月1號
+            if (!window.state.selectedDay || !window.state.selectedDay.startsWith(window.state.selectedMonth)) {
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+                if (todayStr.startsWith(window.state.selectedMonth)) {
+                    window.state.selectedDay = todayStr;
+                } else {
+                    window.state.selectedDay = `${window.state.selectedMonth}-01`;
+                }
+            }
+
+            // 計算月曆網格資料
+            const firstDay = new Date(yearNum, monthNum - 1, 1);
+            const startDayOfWeek = firstDay.getDay(); // 0 = Sun, 1 = Mon...
+            const totalDays = new Date(yearNum, monthNum, 0).getDate();
+
+            // 1. 篩選控制項
+            let cardOptions = '';
+            window.state.creditCards.forEach(c => {
+                cardOptions += `<option value="${c.name}" ${c.name === window.state.filterPayment ? 'selected' : ''}>${c.name}</option>`;
+            });
+
+            let filterHeaderHTML = `
+                <div class="bg-white p-4 rounded-3xl border border-[#E6DFD5] shadow-sm space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <span class="text-xs font-black text-slate-700 flex items-center gap-1">
+                            <span>🔍</span> 篩選帳目
+                        </span>
+                        <input
+                            type="month"
+                            value="${window.state.selectedMonth}"
+                            onchange="setSelectedMonthFromHistory(this.value)"
+                            class="px-2.5 py-1 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-[#4A3C31] font-black"
+                        />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <select onchange="setHistoryFilter('type', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
+                            <option value="all" ${window.state.filterType === 'all' ? 'selected' : ''}>所有類型</option>
+                            <option value="expense" ${window.state.filterType === 'expense' ? 'selected' : ''}>支出明細</option>
+                            <option value="income" ${window.state.filterType === 'income' ? 'selected' : ''}>收入明細</option>
+                        </select>
+
+                        <select onchange="setHistoryFilter('payment', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
+                            <option value="all" ${window.state.filterPayment === 'all' ? 'selected' : ''}>所有付款</option>
+                            <option value="現金" ${window.state.filterPayment === '現金' ? 'selected' : ''}>僅現金 / 帳戶</option>
+                            ${cardOptions}
+                        </select>
+                    </div>
+                </div>
+            `;
+
+            // 2. 月度日曆主格柵 (日 一 二 三 四 五 六)
+            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            let calendarWeeksHTML = weekdays.map(day => `
+                <div class="text-center text-[10px] font-black text-[#8A7B70] py-1">${day}</div>
+            `).join('');
+
+            // 填充前置空天數
+            for (let i = 0; i < startDayOfWeek; i++) {
+                calendarWeeksHTML += `<div class="aspect-square bg-transparent"></div>`;
+            }
+
+            // 填充實際日子
+            for (let d = 1; d <= totalDays; d++) {
+                const dayStr = `${yearNum}-${monthStr}-${String(d).padStart(2, '0')}`;
+                const isSelected = window.state.selectedDay === dayStr;
+
+                // 搜尋當日所有登載交易
+                const dayTxs = window.state.transactions.filter(tx => tx.date === dayStr);
+                
+                // 套用使用者啟動之 Type & Payment 篩選條件
+                const matchingTxs = dayTxs.filter(tx => {
+                    const matchType = window.state.filterType === 'all' ? true : tx.type === window.state.filterType;
+                    const matchPayment = window.state.filterPayment === 'all' ? true : tx.paymentMethod === window.state.filterPayment;
+                    return matchType && matchPayment;
+                });
+
+                // 計算當日圓點屬性 (紅色=有支出, 綠色=有收入, 橘色=雙重並存)
+                let dayIndicatorHTML = '';
+                if (matchingTxs.length > 0) {
+                    let hasExpense = false;
+                    let hasIncome = false;
+                    matchingTxs.forEach(tx => {
+                        if (tx.type === 'expense') hasExpense = true;
+                        if (tx.type === 'income') hasIncome = true;
+                    });
+                    
+                    if (hasExpense && hasIncome) {
+                        dayIndicatorHTML = `<span class="w-1 h-1 rounded-full bg-amber-500"></span>`; // 雙收支
+                    } else if (hasExpense) {
+                        dayIndicatorHTML = `<span class="w-1 h-1 rounded-full bg-rose-400"></span>`; // 僅支出
+                    } else if (hasIncome) {
+                        dayIndicatorHTML = `<span class="w-1 h-1 rounded-full bg-[#5A8F76]"></span>`; // 僅收入
+                    }
+                }
+
+                calendarWeeksHTML += `
+                    <button type="button" onclick="selectCalendarDay('${dayStr}')" class="aspect-square rounded-xl flex flex-col items-center justify-between p-1 text-xs border transition relative cursor-pointer
+                        \${isSelected 
+                            ? 'bg-[#4A3C31] text-[#FAF7F2] border-[#4A3C31] font-black shadow-sm' 
+                            : 'bg-white hover:bg-slate-50 border-[#E6DFD5]/40 text-[#362C24] font-bold'
+                        }
+                    ">
+                        <span>\${d}</span>
+                        <div class="flex justify-center gap-0.5 w-full h-1.5 items-center">
+                            \${dayIndicatorHTML}
+                        </div>
+                    </button>`.replace('\${isSelected \n                            ? \'bg-[#4A3C31] text-[#FAF7F2] border-[#4A3C31] font-black shadow-sm\' \n                            : \'bg-white hover:bg-slate-50 border-[#E6DFD5]/40 text-[#362C24] font-bold\'\n                        }', isSelected ? 'bg-[#4A3C31] text-[#FAF7F2] border-[#4A3C31] font-black shadow-sm' : 'bg-white hover:bg-slate-50 border-[#E6DFD5]/40 text-[#362C24] font-bold').replace('\${d}', d).replace('\${dayIndicatorHTML}', dayIndicatorHTML);
+            }
+
+            let calendarHTML = `
+                <div class="bg-white p-3 rounded-3xl border border-[#E6DFD5] shadow-sm">
+                    <div class="grid grid-cols-7 gap-1">
+                        ${calendarWeeksHTML}
+                    </div>
+                </div>
+            `;
+
+            // 3. 渲染選定日期的消費明細
+            const selectedDayTxs = window.state.transactions.filter(tx => {
+                const matchDay = tx.date === window.state.selectedDay;
                 const matchType = window.state.filterType === 'all' ? true : tx.type === window.state.filterType;
                 const matchPayment = window.state.filterPayment === 'all' ? true : tx.paymentMethod === window.state.filterPayment;
-                return matchMonth && matchType && matchPayment;
+                return matchDay && matchType && matchPayment;
             });
 
             let historyListHTML = '';
-            filtered.forEach(tx => {
+            selectedDayTxs.forEach(tx => {
                 const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
                 const convertedAmount = convertToBase(tx.amount, tx.currency);
                 const showSubCurrency = tx.currency !== window.state.baseCurrencyCode;
@@ -1249,49 +1376,52 @@
                     </div>`;
             });
 
-            if (filtered.length === 0) {
-                historyListHTML = `
-                    <div class="text-center py-12 text-[#8A7B70] bg-white rounded-3xl border border-[#E6DFD5]">
-                        <span class="text-3xl">📭</span>
-                        <p class="text-xs mt-1.5 font-black">沒有符合篩選條件的交易</p>
-                    </div>`;
-            }
+            const formattedSelectedDay = window.state.selectedDay.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1 年 $2 月 $3 日');
 
-            let cardOptions = '';
-            window.state.creditCards.forEach(c => {
-                cardOptions += `<option value="${c.name}" ${c.name === window.state.filterPayment ? 'selected' : ''}>${c.name}</option>`;
-            });
+            if (selectedDayTxs.length === 0) {
+                historyListHTML = `
+                    <div class="text-center py-10 text-[#8A7B70] bg-white rounded-3xl border border-[#E6DFD5]">
+                        <span class="text-2xl">📭</span>
+                        <p class="text-xs mt-1.5 font-black">${formattedSelectedDay} 尚無交易紀錄</p>
+                    </div>`;
+            } else {
+                historyListHTML = `
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between px-1">
+                            <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest">${formattedSelectedDay} 明細</span>
+                            <span class="text-[10px] font-black text-[#4A3C31]">${selectedDayTxs.length} 筆項目</span>
+                        </div>
+                        ${historyListHTML}
+                    </div>
+                `;
+            }
 
             container.innerHTML = `
                 <div class="space-y-4">
-                    <div class="bg-white p-4 rounded-3xl border border-[#E6DFD5] shadow-sm space-y-3">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-                            <span class="text-xs font-black text-slate-700 flex items-center gap-1">
-                                <span>🔍</span> 篩選帳目
-                            </span>
-                            <span class="text-xs font-black text-[#4A3C31]">${window.state.selectedMonth}</span>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-2">
-                            <select onchange="setHistoryFilter('type', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
-                                <option value="all" ${window.state.filterType === 'all' ? 'selected' : ''}>所有類型</option>
-                                <option value="expense" ${window.state.filterType === 'expense' ? 'selected' : ''}>支出明細</option>
-                                <option value="income" ${window.state.filterType === 'income' ? 'selected' : ''}>收入明細</option>
-                            </select>
-
-                            <select onchange="setHistoryFilter('payment', this.value)" class="px-2 py-1.5 text-[10px] bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
-                                <option value="all" ${window.state.filterPayment === 'all' ? 'selected' : ''}>所有付款</option>
-                                <option value="現金" ${window.state.filterPayment === '現金' ? 'selected' : ''}>僅現金 / 帳戶</option>
-                                ${cardOptions}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="space-y-2">
-                        ${historyListHTML}
-                    </div>
+                    ${filterHeaderHTML}
+                    ${calendarHTML}
+                    ${historyListHTML}
                 </div>`;
         }
+
+        // 💡 互動輔助函式：切換月份時，自動更新選定日
+        window.setSelectedMonthFromHistory = function(value) {
+            window.state.selectedMonth = value;
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            if (todayStr.startsWith(value)) {
+                window.state.selectedDay = todayStr;
+            } else {
+                window.state.selectedDay = `${value}-01`;
+            }
+            render();
+        };
+
+        // 💡 互動輔助函式：點擊月曆格子切換日期，流暢恢復滾動不跳動
+        window.selectCalendarDay = function(dayStr) {
+            window.state.selectedDay = dayStr;
+            render();
+        };
 
         window.setHistoryFilter = function(filterKey, value) {
             if (filterKey === 'type') window.state.filterType = value;
@@ -1433,7 +1563,7 @@
                             <p class="font-black text-[#4A3C31]">💡 完美移轉步驟：</p>
                             <p>1. 在 <strong>舊手機</strong> 上點擊下方【導出備份檔案】下載備份。</p>
                             <p>2. 下載時可選擇儲存至 iCloud 雲端或透過 <strong>AirDrop</strong> 傳送給新 iPhone。</p>
-                            <p>3. 在 <strong>新手機</strong> 開網頁，於此頁面點擊【導入備份檔案】讀取即可完成移轉！</p>
+                            <p>3. 在 <strong>新手機</strong> 開啟網頁，於此頁面點擊【導入備份檔案】讀取即可完成移轉！</p>
                         </div>
 
                         <div class="grid grid-cols-2 gap-2 pt-1">
@@ -1564,7 +1694,7 @@
             majorCatObj.sub.forEach(subObj => {
                 const isSelected = tx.subCategory === subObj.name;
                 editSubsPills += `
-                    <button type="button" onclick="setEditSubCategory('${subObj.name}')" class="px-2.5 py-1 rounded-full text-[10px] font-black border transition-all flex items-center gap-1 shadow-sm ${isSelected ? 'border-[#4A3C31] bg-[#4A3C31] text-white' : 'border-slate-100 bg-white text-slate-600'}">
+                    <button type="button" onclick="setEditSubCategory('${subObj.name}')" class="px-2.5 py-1 rounded-full text-[10px] font-black border transition-all flex items-center gap-1 shadow-sm ${isSelected ? 'border-[#4A3C31] bg-[#4A3C31] text-[#FAF7F2]' : 'border-slate-100 bg-white text-slate-600'}">
                         <span>${subObj.icon}</span>
                         <span>${subObj.name}</span>
                     </button>`;
@@ -1870,7 +2000,7 @@
             if (!yearSelect || !monthSelect) return;
             
             yearSelect.innerHTML = '';
-            for (let y = 2024; y <= 2036; y++) {
+            for (let y = 2026; y <= 2036; y++) {
                 yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
             }
 
