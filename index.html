@@ -68,9 +68,9 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 修正加入主畫面後的 iOS 安全區適配，避免導覽列被 Home Indicator 遮擋 */
+        /* 修正加入主畫面後的 iOS 安全區適配，避免導覽列被 Home Indicator 遮擋（將安全襯距向上調高，防遮擋） */
         .safe-bottom {
-            padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+            padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)) !important;
         }
         
         /* iOS 原生級滾動襯距：最佳化縮小頂部留白，緊湊且避開狀態列與瀏海 */
