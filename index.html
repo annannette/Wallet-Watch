@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <!-- 將網頁 Title 與 apple-mobile-web-app-title 統一設定為 WalletWatch，確保 iPhone 加入主畫面時只會留 WalletWatch -->
     <title>WalletWatch</title>
     
@@ -307,7 +307,9 @@
         // --- 安全算式解析運算器 ---
         function safeEval(str) {
             if (!str) return 0;
-            let sanitized = str.replace(/✕/g, '*').replace(/÷/g, '/');
+            // 轉化運算元，支援各代碼中鍵盤之特規乘號與除號、減號等
+            let sanitized = str.replace(/✕/g, '*').replace(/÷/g, '/').replace(/×/g, '*').replace(/&times;/g, '*').replace(/−/g, '-');
+            // 驗證只允許算術運算與數字組合
             if (!/^[0-9\s.+\-*/]*$/.test(sanitized)) return null;
             try {
                 let res = new Function(`return (${sanitized})`)();
@@ -320,19 +322,31 @@
             }
         }
 
-        // --- 計算與轉換 Utility 函式 ---
+        // --- 計算與轉換 Utility 函式 (關鍵修復：匯率換算成台幣時，有小數點無條件進位四捨五入成無小數點之整數) ---
         function convertToBase(amount, fromCurrencyCode) {
             const fromCurr = window.state.currencies.find(c => c.code === fromCurrencyCode);
             const baseCurrency = window.state.currencies.find(c => c.code === window.state.baseCurrencyCode) || window.state.currencies[0];
             if (!fromCurr || !baseCurrency) return amount;
-            return (amount * fromCurr.rateToBase) / baseCurrency.rateToBase;
+            
+            let valInBase = (amount * fromCurr.rateToBase) / baseCurrency.rateToBase;
+            
+            // 核心功能：當目標基準貨幣是 TWD (台幣) 時，有小數點無條件四捨五入進位為整數
+            if (baseCurrency.code === 'TWD') {
+                return Math.round(valInBase);
+            }
+            return valInBase;
         }
 
-        // --- 格式化金額輸出 ---
+        // --- 格式化金額輸出 (修復：台幣 TWD 強制顯示為無小數之整數) ---
         function formatAmount(amount, currencyCode, showSymbol = true) {
             const curr = window.state.currencies.find(c => c.code === currencyCode);
             const symbol = curr ? curr.symbol : '$';
-            const formatted = Number(amount).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            // 台幣強制零小數位，外幣則保留最多兩位
+            const decimals = currencyCode === 'TWD' ? 0 : 2;
+            const formatted = Number(amount).toLocaleString('zh-TW', { 
+                minimumFractionDigits: 0, 
+                maximumFractionDigits: decimals 
+            });
             return showSymbol ? `${symbol} ${formatted}` : formatted;
         }
 
@@ -344,7 +358,7 @@
         function getAmountFontSize(length) {
             length = length || 1;
             if (length <= 6) return '3.2rem';
-            const dynamicSize = 3.2 - (length - 6) * 0.22;
+            const dynamicSize = 3.2 - (length - 6) * 0.15;
             return `${Math.max(1.6, dynamicSize)}rem`;
         }
 
@@ -496,8 +510,17 @@
             render();
         };
 
-        // --- 核心渲染引擎 ---
+        // --- 核心渲染引擎 (已修正重繪時的頁面捲動與動畫重繪跳動問題) ---
         function render() {
+            // 💡 核心優化：渲染前，先記憶記錄目前滾動容器的捲動位置
+            const scrollContainer = document.getElementById('main-scroll-container');
+            const savedScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+
+            const editModal = document.getElementById('edit-modal');
+            // 💡 修正：尋找彈出視窗內實際滾動的那一層 div (.overflow-y-auto) 記憶其高度
+            const editScrollContainer = editModal ? editModal.querySelector('.overflow-y-auto') : null;
+            const savedEditScrollTop = editScrollContainer ? editScrollContainer.scrollTop : 0;
+
             // 更新導覽列啟動狀態 (5欄完全平鋪對齊)
             const tabs = ['dashboard', 'history', 'add', 'categories', 'settings'];
             tabs.forEach(tab => {
@@ -544,6 +567,16 @@
 
             // 同步修改視窗 (Edit Sheet)
             renderEditModal();
+
+            // 💡 核心優化：渲染完成後，立即精準同步恢復滾動高度，防止頁面跳動
+            if (scrollContainer) {
+                scrollContainer.scrollTop = savedScrollTop;
+            }
+            // 💡 修正：恢復剛剛被重建的彈出視窗內部之滾動高度
+            const newEditScrollContainer = editModal ? editModal.querySelector('.overflow-y-auto') : null;
+            if (newEditScrollContainer) {
+                newEditScrollContainer.scrollTop = savedEditScrollTop;
+            }
         }
 
         // ==========================================
@@ -687,7 +720,7 @@
                 categoryListHTML = `
                     <div class="text-center py-8 text-[#8A7B70] w-full">
                         <span class="text-3xl">☕</span>
-                        <p class="text-xs mt-1.5 font-bold">本月尚無任何支出記錄</p>
+                        <p class="text-xs mt-1.5 font-bold">本月尚無 any 支出記錄</p>
                     </div>`;
             } else {
                 categoryListHTML = `
@@ -755,10 +788,13 @@
                 cardsHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-2">尚未綁定任何信用卡</p>`;
             }
 
-            // --- 最近明細 HTML ---
+            // --- 最近明細 (修正：最上方大字金額永遠為換算後台幣，下方顯示原始幣值) ---
             let recentHTML = '';
             filtered.slice(0, 3).forEach(tx => {
                 const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
+                const convertedAmount = convertToBase(tx.amount, tx.currency);
+                const showSubCurrency = tx.currency !== window.state.baseCurrencyCode;
+
                 recentHTML += `
                     <div class="relative flex items-center justify-between p-2 rounded-2xl bg-[#FAF7F2] hover:bg-white border border-[#E6DFD5]/30 transition group">
                         <span class="absolute -left-[18.5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-[#8A7B70] border-2 border-white shadow-sm"></span>
@@ -776,10 +812,12 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <div class="text-right">
+                                <!-- 主要顯示換算台幣結果 -->
                                 <p class="font-black text-xs ${tx.type === 'expense' ? 'text-[#4A3C31]' : 'text-[#5A8F76]'}">
-                                    ${tx.type === 'expense' ? '-' : '+'}${formatAmount(tx.amount, tx.currency)}
+                                    ${tx.type === 'expense' ? '-' : '+'}${formatBaseAmount(convertedAmount)}
                                 </p>
-                                ${tx.currency !== window.state.baseCurrencyCode ? `<p class="text-[8px] font-bold text-[#8A7B70]">≈ ${formatBaseAmount(convertToBase(tx.amount, tx.currency))}</p>` : ''}
+                                <!-- 下方則是原始幣值 -->
+                                ${showSubCurrency ? `<p class="text-[8px] font-bold text-[#8A7B70]">原始: ${formatAmount(tx.amount, tx.currency)}</p>` : ''}
                             </div>
                             <div class="flex items-center gap-1">
                                 <button onclick="triggerEdit('${tx.id}')" class="w-6 h-6 rounded-lg bg-white border border-[#E6DFD5] text-[#8A7B70] hover:text-[#4A3C31] flex items-center justify-center text-[10px] cursor-pointer font-bold transition">✏️</button>
@@ -864,7 +902,7 @@
         };
 
         // ==========================================
-        // TAB 2: 記一筆 (ADD TRANSACTION) (修正：完美等高、等寬大鍵盤樣式)
+        // TAB 2: 記一筆 (ADD TRANSACTION) (修正：完美等高、等寬4x5專業級加減乘除式鍵盤)
         // ==========================================
         function renderAdd(container) {
             const currentCategories = window.state.categories[window.state.txType] || {};
@@ -877,7 +915,7 @@
                     <button type="button" onclick="setAddTxType('income')" class="flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${window.state.txType === 'income' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}">💰 收入進帳</button>
                 </div>`;
 
-            // 大類按鈕清單 (新增 居家 後，完美 2x4 共 8 個大類徽章填滿)
+            // 大類按鈕清單 (完美 2x4 共 8 個大類徽章填滿)
             let majorGridHTML = '';
             Object.keys(currentCategories).forEach(catName => {
                 const catObj = currentCategories[catName];
@@ -914,7 +952,42 @@
             });
 
             const currentCurrencySymbol = window.state.currencies.find(c => c.code === window.state.txCurrency)?.symbol || '$';
-            const displayFontSize = getAmountFontSize(window.state.txAmount.length);
+            
+            // 算式字串格式化顯示（將 *, / 取代為 ×, ÷ ；將 - 取起為 − 以利人類閱讀）
+            let displayStr = (window.state.txAmount || '0')
+                .replace(/\*/g, ' × ')
+                .replace(/\//g, ' ÷ ')
+                .replace(/\+/g, ' + ')
+                .replace(/\-/g, ' − ');
+                
+            const displayFontSize = getAmountFontSize(displayStr.length);
+
+            // 即時運算預覽 (優化修復：輸入單純數字外幣的時候也在下方即時計算顯示台幣 NT$)
+            let liveEvalValue = safeEval(window.state.txAmount);
+            let liveResultHTML = '';
+            if (window.state.txAmount && window.state.txAmount !== '0') {
+                if (liveEvalValue !== null) {
+                    const isTWD = window.state.txCurrency === 'TWD';
+                    const isFormula = /[\+\-\*\/]/.test(window.state.txAmount);
+                    
+                    if (isFormula) {
+                        if (isTWD) {
+                            const displayLiveVal = Math.round(liveEvalValue);
+                            liveResultHTML = `<span class="text-[10px] font-black text-[#5A8F76] mt-0.5">即時計算結果: NT$ ${displayLiveVal.toLocaleString('zh-TW')}</span>`;
+                        } else {
+                            const displayLiveVal = Number(liveEvalValue.toFixed(2));
+                            const convertedTWDVal = Math.round(convertToBase(liveEvalValue, window.state.txCurrency));
+                            liveResultHTML = `<span class="text-[10px] font-black text-[#5A8F76] mt-0.5">即時計算結果: ${currentCurrencySymbol} ${displayLiveVal.toLocaleString('zh-TW')} ≈ NT$ ${convertedTWDVal.toLocaleString('zh-TW')}</span>`;
+                        }
+                    } else if (!isTWD) {
+                        // 單純數字的外幣，同樣在下方顯示即時台幣換算
+                        const convertedTWDVal = Math.round(convertToBase(liveEvalValue, window.state.txCurrency));
+                        liveResultHTML = `<span class="text-[10px] font-black text-[#5A8F76] mt-0.5">即時換算台幣: NT$ ${convertedTWDVal.toLocaleString('zh-TW')}</span>`;
+                    }
+                } else if (/[\+\-\*\/]/.test(window.state.txAmount)) {
+                    liveResultHTML = `<span class="text-[10px] font-black text-rose-400 mt-0.5">算式未完成...</span>`;
+                }
+            }
 
             container.innerHTML = `
                 <div class="space-y-4">
@@ -932,10 +1005,10 @@
                         <div class="flex flex-wrap gap-1.5">${subPillsHTML}</div>
                     </div>
 
-                    <!-- 專業 3x4 金額計算鍵盤 -->
+                    <!-- 專業級計算機鍵盤區 -->
                     <div class="space-y-2">
                         <div class="flex items-center justify-between">
-                            <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest">記帳金額與幣別</span>
+                            <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest">記帳算式與幣別</span>
                             <select onchange="setAddTxCurrency(this.value)" class="px-2 py-0.5 bg-white border border-[#E6DFD5] text-xs font-black rounded-lg text-[#4A3C31]">
                                 ${currencyOptions}
                             </select>
@@ -943,39 +1016,48 @@
 
                         <div class="relative p-4 bg-gradient-to-b from-[#FAF7F2]/60 to-[#E6DFD5]/40 rounded-3xl overflow-hidden border border-white/60 shadow-inner">
                             <div class="absolute top-2 left-1/3 w-20 h-20 bg-amber-200/20 rounded-full blur-2xl -z-10"></div>
-                            
+                            <div class="absolute bottom-6 right-1/4 w-24 h-24 bg-rose-200/10 rounded-full blur-2xl -z-10"></div>
+
                             <!-- 金額與即時算式顯示螢幕 -->
                             <div class="bg-white/50 backdrop-blur-md border border-[#E6DFD5] rounded-2xl p-3.5 mb-3 flex flex-col justify-end items-end min-h-[76px] shadow-sm">
                                 <span class="text-[8px] font-black text-[#8A7B70] self-start">AMOUNT ENTRY (${window.state.txCurrency})</span>
                                 <div class="w-full text-right font-black text-[#362C24] whitespace-nowrap overflow-hidden flex items-baseline justify-end" style="font-size: ${displayFontSize}; line-height: 1.1">
                                     <span class="text-xl font-black text-[#4A3C31] mr-1.5 self-center">${currentCurrencySymbol}</span>
-                                    <span>${window.state.txAmount || '0'}</span>
+                                    <span>${displayStr}</span>
                                 </div>
+                                ${liveResultHTML}
                             </div>
 
-                            <!-- 優雅等寬大鍵盤 (1-9, 小數點, 0, 退格) -->
-                            <div class="grid grid-cols-3 gap-2 p-1.5 bg-white/30 backdrop-blur-xl border border-white/40 rounded-2xl shadow-md">
-                                <button type="button" onclick="handleCalcInput('1')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">1</button>
-                                <button type="button" onclick="handleCalcInput('2')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">2</button>
-                                <button type="button" onclick="handleCalcInput('3')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">3</button>
-                                
-                                <button type="button" onclick="handleCalcInput('4')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">4</button>
-                                <button type="button" onclick="handleCalcInput('5')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">5</button>
-                                <button type="button" onclick="handleCalcInput('6')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">6</button>
-                                
+                            <!-- 完美對稱與標準化等寬 4x5 算式大鍵盤 -->
+                            <div class="grid grid-cols-4 gap-2 p-1.5 bg-white/30 backdrop-blur-xl border border-white/40 rounded-2xl shadow-md">
+                                <!-- Row 1 -->
                                 <button type="button" onclick="handleCalcInput('7')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">7</button>
                                 <button type="button" onclick="handleCalcInput('8')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">8</button>
                                 <button type="button" onclick="handleCalcInput('9')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">9</button>
-                                
-                                <button type="button" onclick="handleCalcInput('.')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">•</button>
-                                <button type="button" onclick="handleCalcInput('0')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">0</button>
-                                <button type="button" onclick="handleCalcInput('backspace')" class="h-11 flex items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 active:scale-90 shadow-sm font-black text-lg text-rose-700">⌫</button>
-                            </div>
+                                <button type="button" onclick="handleCalcInput('/')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">÷</button>
 
-                            ${window.state.txAmount ? `
-                            <button type="button" onclick="handleCalcInput('clear')" class="mt-1.5 text-[9px] font-black text-[#8A7B70] hover:text-rose-600 transition flex items-center gap-1 mx-auto">
-                                🗑️ 清除重寫
-                            </button>` : ''}
+                                <!-- Row 2 -->
+                                <button type="button" onclick="handleCalcInput('4')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">4</button>
+                                <button type="button" onclick="handleCalcInput('5')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">5</button>
+                                <button type="button" onclick="handleCalcInput('6')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">6</button>
+                                <button type="button" onclick="handleCalcInput('*')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">×</button>
+
+                                <!-- Row 3 -->
+                                <button type="button" onclick="handleCalcInput('1')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">1</button>
+                                <button type="button" onclick="handleCalcInput('2')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">2</button>
+                                <button type="button" onclick="handleCalcInput('3')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">3</button>
+                                <button type="button" onclick="handleCalcInput('-')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">−</button>
+
+                                <!-- Row 4 -->
+                                <button type="button" onclick="handleCalcInput('clear')" class="h-11 flex items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 active:scale-95 shadow-sm font-black text-lg text-rose-700">C</button>
+                                <button type="button" onclick="handleCalcInput('0')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">0</button>
+                                <button type="button" onclick="handleCalcInput('.')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">•</button>
+                                <button type="button" onclick="handleCalcInput('+')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">+</button>
+
+                                <!-- Row 5 -->
+                                <button type="button" onclick="handleCalcInput('backspace')" class="col-span-2 h-11 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 active:scale-95 shadow-sm font-black text-xs text-slate-700">⌫ 退格</button>
+                                <button type="button" onclick="handleCalcInput('=')" class="col-span-2 h-11 flex items-center justify-center rounded-xl bg-[#4A3C31] hover:bg-[#342921] text-white active:scale-95 shadow-sm font-black text-lg">=</button>
+                            </div>
                         </div>
                     </div>
 
@@ -1051,13 +1133,47 @@
         // --- 鍵盤輸入邏輯 ---
         window.handleCalcInput = function(value) {
             let current = window.state.txAmount.toString();
+            const operators = ['+', '-', '*', '/'];
+            
             if (value === 'backspace') {
                 current = current.length <= 1 ? '' : current.slice(0, -1);
             } else if (value === 'clear') {
                 current = '';
+            } else if (value === '=') {
+                let res = safeEval(current);
+                if (res !== null) {
+                    // 如果計算結果之目標是台幣，則強制四捨五入進位為整數
+                    if (window.state.txCurrency === 'TWD') {
+                        current = Math.round(res).toString();
+                    } else {
+                        current = Number(res.toFixed(2)).toString();
+                    }
+                } else {
+                    showToast('算式不完整，無法計算！', 'error');
+                    return;
+                }
+            } else if (operators.includes(value)) {
+                if (current === '') {
+                    if (value === '-') current = '-';
+                    else return;
+                } else {
+                    let lastChar = current.slice(-1);
+                    if (operators.includes(lastChar)) {
+                        current = current.slice(0, -1) + value;
+                    } else {
+                        current += value;
+                    }
+                }
             } else if (value === '.') {
-                if (current.includes('.')) return;
-                current = current === '' ? '0.' : current + '.';
+                let segments = current.split(/[\+\-\*\/]/);
+                let activeSegment = segments[segments.length - 1] || '';
+                if (activeSegment.includes('.')) return;
+                
+                if (current === '' || operators.includes(current.slice(-1))) {
+                    current += '0.';
+                } else {
+                    current += '.';
+                }
             } else {
                 if (current === '0') {
                     current = value.toString();
@@ -1069,11 +1185,25 @@
             render();
         };
 
-        // --- 確認送出記帳 ---
+        // --- 確認送出記帳 (修復：送出前若有算式，自動完成計算並進位) ---
         window.submitAddTx = function() {
-            const numericAmount = parseFloat(window.state.txAmount);
-            if (!window.state.txAmount || isNaN(numericAmount) || numericAmount <= 0) {
-                showToast('請使用鍵盤輸入有效的金額！', 'error');
+            let finalAmountStr = window.state.txAmount.toString();
+            let evaluated = safeEval(finalAmountStr);
+            
+            if (finalAmountStr === '' || evaluated === null) {
+                showToast('算式不完整或格式錯誤！請重新確認。', 'error');
+                return;
+            }
+            
+            // 匯率換算成台幣時進位成沒有小數點之整數
+            if (window.state.txCurrency === 'TWD') {
+                evaluated = Math.round(evaluated);
+            } else {
+                evaluated = Number(evaluated.toFixed(2));
+            }
+            
+            if (evaluated <= 0) {
+                showToast('記帳金額必須大於 0 元！', 'error');
                 return;
             }
             if (!window.state.txSubCategory) {
@@ -1087,7 +1217,7 @@
                 type: window.state.txType,
                 majorCategory: window.state.txMajorCategory,
                 subCategory: window.state.txSubCategory,
-                amount: numericAmount,
+                amount: evaluated,
                 currency: window.state.txCurrency,
                 paymentMethod: window.state.txType === 'income' ? '現金' : window.state.txPaymentMethod,
                 note: window.state.txNote.trim()
@@ -1120,6 +1250,9 @@
             let historyListHTML = '';
             filtered.forEach(tx => {
                 const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
+                const convertedAmount = convertToBase(tx.amount, tx.currency);
+                const showSubCurrency = tx.currency !== window.state.baseCurrencyCode;
+
                 historyListHTML += `
                     <div class="flex items-center justify-between p-3 rounded-2xl bg-white border border-[#E6DFD5] shadow-sm hover:scale-[1.01] transition-transform">
                         <div class="flex items-center gap-2.5">
@@ -1136,10 +1269,12 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <div class="text-right">
+                                <!-- 主要顯示換算台幣結果 -->
                                 <p class="font-black text-xs ${tx.type === 'expense' ? 'text-[#4A3C31]' : 'text-[#5A8F76]'}">
-                                    ${tx.type === 'expense' ? '-' : '+'}${formatAmount(tx.amount, tx.currency)}
+                                    ${tx.type === 'expense' ? '-' : '+'}${formatBaseAmount(convertedAmount)}
                                 </p>
-                                ${tx.currency !== window.state.baseCurrencyCode ? `<p class="text-[8px] font-bold text-[#8A7B70]">≈ ${formatBaseAmount(convertToBase(tx.amount, tx.currency))}</p>` : ''}
+                                <!-- 下方則是原始幣值 -->
+                                ${showSubCurrency ? `<p class="text-[8px] font-bold text-[#8A7B70]">原始: ${formatAmount(tx.amount, tx.currency)}</p>` : ''}
                             </div>
                             <div class="flex items-center gap-1">
                                 <button onclick="triggerEdit('${tx.id}')" class="w-6 h-6 rounded-lg bg-white border border-[#E6DFD5] text-[#8A7B70] hover:text-[#4A3C31] flex items-center justify-center text-[10px] cursor-pointer font-bold transition">✏️</button>
@@ -1206,7 +1341,7 @@
             let majorOptions = '';
             const editingTypeCategories = window.state.categories[window.state.editingMajorType] || {};
             Object.keys(editingTypeCategories).forEach(cat => {
-                majorOptions += `<option value="${cat}" ${cat === window.state.editingMajorCat ? 'selected' : ''}>${cat}</option>`;
+                majorOptions += `<option value="${cat}" ${cat === window.state.editingMajorCat ? 'selected' : ''}>cat</option>`.replace('cat', cat);
             });
 
             let emojiGrid = '';
@@ -1281,57 +1416,6 @@
                     </div>
                 </div>`;
         }
-
-        window.setCategoriesEditType = function(type) {
-            window.state.editingMajorType = type;
-            const keys = Object.keys(window.state.categories[type]);
-            window.state.editingMajorCat = keys[0] || '';
-            render();
-        };
-
-        window.setCategoriesEditMajor = function(cat) {
-            window.state.editingMajorCat = cat;
-            render();
-        };
-
-        window.setNewSubName = function(name) {
-            window.state.newSubName = name;
-        };
-
-        window.setNewSubIcon = function(emoji) {
-            window.state.newSubIcon = emoji;
-            render();
-        };
-
-        window.submitAddSub = function(event) {
-            event.preventDefault();
-            const name = window.state.newSubName.trim();
-            if (!name) {
-                showToast('請輸入小分類名稱', 'error');
-                return;
-            }
-
-            const currentSubs = window.state.categories[window.state.editingMajorType][window.state.editingMajorCat]?.sub || [];
-            if (currentSubs.some(s => s.name === name)) {
-                showToast('此小分類名稱已存在！', 'error');
-                return;
-            }
-
-            currentSubs.push({ name: name, icon: window.state.newSubIcon });
-            saveState();
-            
-            window.state.newSubName = '';
-            showToast(`成功新增小分類「${window.state.newSubIcon} ${name}」`);
-            render();
-        };
-
-        window.deleteSubCategory = function(type, major, subName) {
-            const currentSubs = window.state.categories[type][major]?.sub || [];
-            window.state.categories[type][major].sub = currentSubs.filter(s => s.name !== subName);
-            saveState();
-            showToast(`已刪除小分類「${subName}」`, 'info');
-            render();
-        };
 
         // ==========================================
         // TAB 5: 設定與移轉 (SETTINGS)
@@ -1511,6 +1595,7 @@
             });
 
             let editSubsPills = '';
+            editSubsPills += `<div class="flex flex-wrap gap-1.5">`;
             majorCatObj.sub.forEach(subObj => {
                 const isSelected = tx.subCategory === subObj.name;
                 editSubsPills += `
@@ -1519,6 +1604,7 @@
                         <span>${subObj.name}</span>
                     </button>`;
             });
+            editSubsPills += `</div>`;
 
             let currencyOpts = '';
             window.state.currencies.forEach(c => {
@@ -1530,8 +1616,11 @@
                 paymentOpts += `<option value="${card.name}" ${card.name === window.state.txPaymentMethod ? 'selected' : ''}>💳 ${card.name}</option>`;
             });
 
+            // 💡 記憶核心優化：檢查 modal 目前是否已是開啟狀態（即不含有 hidden 類別）
+            const isAlreadyVisible = !modal.classList.contains('hidden');
+
             modal.innerHTML = `
-                <div class="w-full bg-[#FAF7F2] rounded-t-[36px] max-h-[85%] overflow-y-auto p-6 border-t border-[#E6DFD5] space-y-5 animate-slide-up shadow-[0_-10px_35px_rgba(74,60,49,0.25)]">
+                <div class="w-full bg-[#FAF7F2] rounded-t-[36px] max-h-[85%] overflow-y-auto p-6 border-t border-[#E6DFD5] space-y-5 ${isAlreadyVisible ? '' : 'animate-slide-up'} shadow-[0_-10px_35px_rgba(74,60,49,0.25)]">
                     
                     <div class="flex items-center justify-between border-b border-[#E6DFD5] pb-3">
                         <h3 class="font-serif italic text-2xl font-black text-[#4A3C31]">修改交易明細</h3>
@@ -1552,13 +1641,13 @@
 
                         <div class="space-y-1">
                             <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改小分類</span>
-                            <div class="flex flex-wrap gap-1.5">${editSubsPills}</div>
+                            ${editSubsPills}
                         </div>
 
                         <div class="grid grid-cols-3 gap-2">
                             <div class="space-y-1">
                                 <span class="text-[10px] font-black text-[#8A7B70] block">幣別</span>
-                                <select id="edit-currency-select" class="w-full px-2 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-[#4A3C31] focus:outline-none">
+                                <select id="edit-currency-select" class="w-full px-2 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-[#4A3C31]" onchange="setEditTxCurrency(this.value)">
                                     ${currencyOpts}
                                 </select>
                             </div>
@@ -1634,6 +1723,10 @@
             render();
         };
 
+        window.setEditTxCurrency = function(currency) {
+            window.state.editingTx.currency = currency;
+        };
+
         window.submitSaveEdit = function(event) {
             event.preventDefault();
             const editAmountInput = parseFloat(document.getElementById('edit-amount-input').value);
@@ -1644,13 +1737,20 @@
 
             const index = window.state.transactions.findIndex(t => t.id === window.state.editingTx.id);
             if (index !== -1) {
+                // 如果修改後的貨幣為 TWD，強制將輸入值四捨五入為整數
+                let targetAmount = editAmountInput;
+                const selectedCurrency = document.getElementById('edit-currency-select').value;
+                if (selectedCurrency === 'TWD') {
+                    targetAmount = Math.round(editAmountInput);
+                }
+
                 window.state.transactions[index] = {
                     ...window.state.transactions[index],
                     type: window.state.editingTx.type,
                     majorCategory: window.state.editingTx.majorCategory,
                     subCategory: window.state.editingTx.subCategory,
-                    amount: editAmountInput,
-                    currency: document.getElementById('edit-currency-select').value,
+                    amount: targetAmount,
+                    currency: selectedCurrency,
                     paymentMethod: window.state.editingTx.type === 'income' ? '現金' : document.getElementById('edit-payment-select').value,
                     date: document.getElementById('edit-date-input').value,
                     note: document.getElementById('edit-note-input').value.trim()
