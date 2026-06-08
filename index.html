@@ -1133,8 +1133,8 @@
             window.state.txNote = '';
             showToast('交易已成功登錄！');
             
-            window.state.currentTab = 'dashboard';
-            render();
+            // 安全頁面移轉：使用具有重置滾動位置的 switchTab 導回
+            switchTab('dashboard');
         };
 
         // ==========================================
@@ -1818,8 +1818,18 @@
         // ==========================================
         window.switchTab = function(tab) {
             window.state.currentTab = tab;
-            document.getElementById('main-scroll-container').scrollTop = 0;
-            render();
+            render(); // 1. 先執行重繪，讓 DOM 產生新分頁內容的 HTML
+            
+            const scrollContainer = document.getElementById('main-scroll-container');
+            if (scrollContainer) {
+                scrollContainer.scrollTop = 0; // 2. 立即將滾動高度歸零
+                
+                // 3. 雙重保險：在 20ms 後（瀏覽器重繪渲染幀完成時），再次將 scrollTop 強制歸零
+                // 徹底解決 iOS Safari / Standalone PWA 模式下在切換頁面時產生的渲染空白與高度定位卡死 Bug
+                setTimeout(function() {
+                    scrollContainer.scrollTop = 0;
+                }, 20);
+            }
         };
 
         window.onload = function() {
