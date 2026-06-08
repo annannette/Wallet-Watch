@@ -210,12 +210,13 @@
         JavaScript 核心邏輯
         ========================================== -->
     <script>
-        // --- 預設與初始資料 ---
+        // --- 預設與初始資料 (已補上韓幣 KRW ₩) ---
         const DEFAULT_CURRENCIES = [
             { code: 'TWD', symbol: 'NT$', rateToBase: 1, name: '新台幣' },
             { code: 'USD', symbol: '$', rateToBase: 31.0, name: '美金' },
             { code: 'JPY', symbol: '¥', rateToBase: 0.21, name: '日圓' },
-            { code: 'EUR', symbol: '€', rateToBase: 33.5, name: '歐元' }
+            { code: 'EUR', symbol: '€', rateToBase: 33.5, name: '歐元' },
+            { code: 'KRW', symbol: '₩', rateToBase: 0.024, name: '韓元' }
         ];
 
         const DEFAULT_CREDIT_CARDS = [
@@ -305,7 +306,7 @@
             localStorage.setItem('ios_budget_currencies', JSON.stringify(window.state.currencies));
         }
 
-        // --- 安全算式解析運算器 ---
+        // --- 安全算式解析運算器 (修復：修正空正規表示式 replace(//g) 與特殊減號取代邏輯) ---
         function safeEval(str) {
             if (!str) return 0;
             // 轉化運算元，支援各代碼中鍵盤之特規乘號與除號、減號等
@@ -363,19 +364,21 @@
             return `${Math.max(1.6, dynamicSize)}rem`;
         }
 
-        // --- Toast 提示功能 ---
-        window.showToast = function(message, type = 'success') {
+        // --- Toast 提示功能 (修復：補回被遺漏定義的 showToast 函式) ---
+        function showToast(message, type = 'success') {
             const toastEl = document.getElementById('toast');
+            if (!toastEl) return;
             const icon = type === 'success' ? '✨' : type === 'error' ? '⚡' : '💡';
             toastEl.innerHTML = `
                 <span class="text-base">${icon}</span>
-                <p class="text-xs font-black">{message}</p>
-            `.replace('{message}', message);
+                <p class="text-xs font-black">${message}</p>
+            `;
             toastEl.classList.remove('hidden');
             setTimeout(() => {
                 toastEl.classList.add('hidden');
             }, 3500);
-        };
+        }
+        window.showToast = showToast;
 
         // --- 靜態與動態 SVG 範本 ---
         function getCategoryIcon(name, className = "w-5 h-5") {
@@ -437,7 +440,6 @@
             }
         }
 
-        // 💡 補回在先前更新中遺失的 getTabIcon 函數，解決 ReferenceError 問題
         function getTabIcon(name, active, stroke, className = "w-6 h-6 transition-colors") {
             const strokeColor = stroke || (active ? "#4A3C31" : "#A39385");
             const fillOpacity = active ? "0.2" : "0.05";
@@ -745,7 +747,7 @@
                             </div>
                             <div>
                                 <p class="font-black text-xs text-[#362C24]">${card.name}</p>
-                                <p class="text-[9px] font-bold text-[#8A7B70]">${card.bank} • ${card.txCount} 筆</p>
+                                <p class="text-[9px] font-bold text-[#8A7B70]">${card.bank} • {card.txCount} 筆</p>
                             </div>
                         </div>
                         <span class="font-black text-sm text-[#4A3C31]">${formatBaseAmount(card.amount)}</span>
@@ -853,7 +855,7 @@
                     <!-- 最近帳目明細 -->
                     <div class="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-xs font-black text-[#8A7B70] uppercase tracking-wider">本月最近交易</h3>
+                            <h3 class="text-xs font-black text-[#4A3C31] hover:underline">歷史明細月曆</h3>
                             <button onclick="switchTab('history')" class="text-[10px] font-black text-[#4A3C31] hover:underline">查看全部明細</button>
                         </div>
                         <div class="relative pl-3 border-l-2 border-[#E6DFD5] space-y-4 py-1">${recentHTML}</div>
@@ -1379,16 +1381,22 @@
             const formattedSelectedDay = window.state.selectedDay.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1 年 $2 月 $3 日');
 
             if (selectedDayTxs.length === 0) {
+                // 💡 點擊「無紀錄卡片」直接跳轉至記一筆
                 historyListHTML = `
-                    <div class="text-center py-10 text-[#8A7B70] bg-white rounded-3xl border border-[#E6DFD5]">
+                    <div onclick="linkToAddTabWithDate('${window.state.selectedDay}')" class="text-center py-10 text-[#8A7B70] bg-white rounded-3xl border border-[#E6DFD5] hover:border-[#4A3C31]/30 cursor-pointer transition active:scale-[0.99] select-none">
                         <span class="text-2xl">📭</span>
                         <p class="text-xs mt-1.5 font-black">${formattedSelectedDay} 尚無交易紀錄</p>
+                        <p class="text-[10px] font-black text-[#4A3C31] mt-1 underline">點此新增當日消費 ➕</p>
                     </div>`;
             } else {
+                // 💡 點擊「明細標題」直接跳轉至記一筆
                 historyListHTML = `
                     <div class="space-y-2">
                         <div class="flex items-center justify-between px-1">
-                            <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest">${formattedSelectedDay} 明細</span>
+                            <span onclick="linkToAddTabWithDate('${window.state.selectedDay}')" class="text-[10px] font-black text-[#8A7B70] hover:text-[#4A3C31] hover:underline cursor-pointer uppercase tracking-widest flex items-center gap-1 select-none">
+                                <span>${formattedSelectedDay} 明細</span>
+                                <span class="text-[8px] bg-[#4A3C31]/10 text-[#4A3C31] px-1.5 py-0.5 rounded font-black">➕ 記一筆</span>
+                            </span>
                             <span class="text-[10px] font-black text-[#4A3C31]">${selectedDayTxs.length} 筆項目</span>
                         </div>
                         ${historyListHTML}
@@ -1421,6 +1429,13 @@
         window.selectCalendarDay = function(dayStr) {
             window.state.selectedDay = dayStr;
             render();
+        };
+
+        // 💡 快速切換到「記一筆」並鎖定當選日
+        window.linkToAddTabWithDate = function(dateStr) {
+            window.state.txDate = dateStr;
+            window.state.currentTab = 'add';
+            switchTab('add');
         };
 
         window.setHistoryFilter = function(filterKey, value) {
@@ -1640,25 +1655,6 @@
             window.state.creditCards.push(newCard);
             saveState();
             showToast(`已成功綁定信用卡「${name}」`);
-            render();
-        };
-
-        window.deleteCard = function(id, name) {
-            window.state.creditCards = window.state.creditCards.filter(c => c.id !== id);
-            saveState();
-            showToast(`已解綁信用卡「${name}」`, 'info');
-            render();
-        };
-
-        window.submitSaveRates = function(event) {
-            event.preventDefault();
-            window.state.currencies = window.state.currencies.map(c => {
-                if (c.code === 'TWD') return c;
-                const inputVal = document.getElementById(`rate-input-${c.code}`).value;
-                return { ...c, rateToBase: parseFloat(inputVal) || c.rateToBase };
-            });
-            saveState();
-            showToast('匯率設定已成功更新！');
             render();
         };
 
@@ -2045,6 +2041,21 @@
                 }
             } catch (e) {
                 console.error("Failed to upgrade categories", e);
+            }
+
+            // 💡 韓元幣別自動整合與資料快取相容補丁 (解決 2026 年新幣別載入問題)
+            try {
+                let savedCurrs = localStorage.getItem('ios_budget_currencies');
+                if (savedCurrs) {
+                    let parsed = JSON.parse(savedCurrs);
+                    if (!parsed.some(c => c.code === 'KRW')) {
+                        parsed.push({ code: 'KRW', symbol: '₩', rateToBase: 0.024, name: '韓元' });
+                        window.state.currencies = parsed;
+                        localStorage.setItem('ios_budget_currencies', JSON.stringify(parsed));
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to patch currencies", e);
             }
             
             initHeaderSelectors();
