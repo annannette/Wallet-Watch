@@ -813,7 +813,7 @@
                     </div>`;
             });
             if (filtered.length === 0) {
-                recentHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-4">本月尚未登錄 any 帳目</p>`;
+                recentHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-4">本月尚未登錄任何消費明細</p>`;
             }
 
             // --- 總體整合組裝 ---
@@ -981,7 +981,7 @@
 
                     <!-- 大分類 -->
                     <div class="space-y-1.5">
-                        <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">大類徽章選擇</span>
+                        <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">大分類選擇</span>
                         <div class="grid grid-cols-4 gap-2">${majorGridHTML}</div>
                     </div>
 
@@ -1006,7 +1006,7 @@
 
                             <!-- 金額與即時算式顯示螢幕 -->
                             <div class="bg-white/50 backdrop-blur-md border border-[#E6DFD5] rounded-2xl p-3.5 mb-3 flex flex-col justify-end items-end min-h-[76px] shadow-sm">
-                                <span class="text-[8px] font-black text-[#8A7B70] self-start">AMOUNT ENTRY (${window.state.txCurrency})</span>
+                                <span class="text-[8px] font-black text-[#8A7B70] self-start">EXPRESSION ENTRY (${window.state.txCurrency})</span>
                                 <div class="w-full text-right font-black text-[#362C24] whitespace-nowrap overflow-hidden flex items-baseline justify-end" style="font-size: ${displayFontSize}; line-height: 1.1">
                                     <span class="text-xl font-black text-[#4A3C31] mr-1.5 self-center">${currentCurrencySymbol}</span>
                                     <span>${displayStr}</span>
@@ -1897,6 +1897,15 @@
             render();
         };
 
+        // 💡 解決刪除小分類未定義之核心函式
+        window.deleteSubCategory = function(type, major, subName) {
+            const currentSubs = window.state.categories[type]?.[major]?.sub || [];
+            window.state.categories[type][major].sub = currentSubs.filter(s => s.name !== subName);
+            saveState();
+            showToast(`已刪除小分類「${subName}」`, 'info');
+            render();
+        };
+
         // ==========================================
         // 備份、匯入與轉移代碼操作
         // ==========================================
@@ -1913,7 +1922,7 @@
             
             const dataStr = JSON.stringify(dataPack, null, 2);
             const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-            const exportFileName = `智繪記帳_iPhone備份_${new Date().toISOString().split('T')[0]}.json`;
+            const exportFileName = `WalletWatch_iPhone備份_${new Date().toISOString().split('T')[0]}.json`;
             
             const link = document.createElement('a');
             link.setAttribute('href', dataUri);
