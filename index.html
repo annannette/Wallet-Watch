@@ -298,6 +298,22 @@
             importString: ''
         };
 
+        // 💡 解決下拉選單 Year 改變之處理函式
+        window.handleYearChange = function(year) {
+            const currentMonth = window.state.selectedMonth.split('-')[1];
+            window.state.selectedMonth = `${year}-${currentMonth}`;
+            showToast(`已載入 ${year} 年記帳資料`, 'info');
+            render();
+        };
+
+        // 💡 解決下拉選單 Month 改變之處理函式
+        window.handleMonthChange = function(month) {
+            const currentYear = window.state.selectedMonth.split('-')[0];
+            window.state.selectedMonth = `${currentYear}-${month}`;
+            showToast(`已切換至 ${month} 月明細`, 'success');
+            render();
+        };
+
         // --- 儲存狀態至 LocalStorage ---
         function saveState() {
             localStorage.setItem('ios_budget_transactions', JSON.stringify(window.state.transactions));
@@ -567,10 +583,11 @@
             });
             const balance = incomeTotal - expenseTotal;
 
-            // 2. 歷史月度消費對比
+            // 2. 歷史月度消費對比 (修正：僅顯示當前選擇年份的月度資料，使點選某年時此處只會出現該年份的數據)
+            const currentSelectedYear = window.state.selectedMonth.split('-')[0];
             const trend = {};
             window.state.transactions.forEach(tx => {
-                if (tx.type === 'expense') {
+                if (tx.type === 'expense' && tx.date.startsWith(currentSelectedYear)) {
                     const month = tx.date.substring(0, 7); // "YYYY-MM"
                     const converted = convertToBase(tx.amount, tx.currency);
                     trend[month] = (trend[month] || 0) + converted;
@@ -659,7 +676,7 @@
                 trendRowsHTML = `
                     <div class="text-center py-6 text-[#8A7B70]">
                         <span class="text-2xl">📊</span>
-                        <p class="text-[10px] font-black mt-1">尚無跨月消費數據</p>
+                        <p class="text-[10px] font-black mt-1">此年份尚無消費數據</p>
                     </div>`;
             } else {
                 monthlyTrendStats.forEach(stat => {
@@ -689,7 +706,7 @@
                 categoryListHTML = `
                     <div class="text-center py-8 text-[#8A7B70] w-full">
                         <span class="text-3xl">☕</span>
-                        <p class="text-xs mt-1.5 font-bold">本月尚無 any 支出記錄</p>
+                        <p class="text-xs mt-1.5 font-bold">本月尚無任何支出記錄</p>
                     </div>`;
             } else {
                 categoryListHTML = `
@@ -1246,7 +1263,7 @@
                             type="month"
                             value="${window.state.selectedMonth}"
                             onchange="setSelectedMonthFromHistory(this.value)"
-                            class="px-2.5 py-1 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-[#4A3C31] font-black"
+                            class="px-2.5 py-1 text-xs bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-[#4A3C31] font-black"
                         />
                     </div>
 
@@ -1655,6 +1672,25 @@
             window.state.creditCards.push(newCard);
             saveState();
             showToast(`已成功綁定信用卡「${name}」`);
+            render();
+        };
+
+        window.deleteCard = function(id, name) {
+            window.state.creditCards = window.state.creditCards.filter(c => c.id !== id);
+            saveState();
+            showToast(`已解綁信用卡「${name}」`, 'info');
+            render();
+        };
+
+        window.submitSaveRates = function(event) {
+            event.preventDefault();
+            window.state.currencies = window.state.currencies.map(c => {
+                if (c.code === 'TWD') return c;
+                const inputVal = document.getElementById('rate-input-' + c.code).value;
+                return { ...c, rateToBase: parseFloat(inputVal) || c.rateToBase };
+            });
+            saveState();
+            showToast('匯率設定已成功更新！');
             render();
         };
 
