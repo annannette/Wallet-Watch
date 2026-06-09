@@ -167,6 +167,11 @@
             <!-- 彈出修改欄位內容 -->
         </div>
 
+        <!-- 小分類操作彈窗 (自訂 Modal Overlay) -->
+        <div id="sub-action-modal" class="hidden absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-5 transition-opacity duration-300">
+            <!-- 彈出小分類管理欄位內容 -->
+        </div>
+
         <!-- 擬真 iPhone 觸控條安全區 -->
         <div class="hidden sm:block absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#2C302E] rounded-full pointer-events-none z-40"></div>
 
@@ -1902,12 +1907,87 @@
             render();
         };
 
-        // 💡 解決刪除小分類未定義之核心函式
+        // 💡 解決刪除小分類未定義之核心函式（升級為彈出式「修改名稱」與「確認刪除」雙效機制）
         window.deleteSubCategory = function(type, major, subName) {
+            const modal = document.getElementById('sub-action-modal');
+            if (!modal) return;
+
+            const currentSubs = window.state.categories[type]?.[major]?.sub || [];
+            const subObj = currentSubs.find(s => s.name === subName) || { icon: '✨', name: subName };
+
+            modal.innerHTML = `
+                <div class="w-full max-w-[320px] bg-[#FAF7F2] rounded-t-[28px] sm:rounded-[28px] p-6 border-t sm:border border-[#E6DFD5] shadow-[0_10px_35px_rgba(74,60,49,0.25)] space-y-5 animate-slide-up mx-auto">
+                    <div class="flex items-center justify-between border-b border-[#E6DFD5] pb-2">
+                        <h4 class="font-serif italic text-base font-black text-[#4A3C31]">小分類設定</h4>
+                        <button type="button" onclick="closeSubActionModal()" class="w-6 h-6 rounded-full bg-white border border-[#E6DFD5] flex items-center justify-center text-[10px] font-black shadow-sm transition active:scale-95 cursor-pointer">✕</button>
+                    </div>
+                    
+                    <div class="space-y-1.5">
+                        <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改分類名稱</span>
+                        <div class="flex gap-2">
+                            <span class="w-9 h-9 rounded-xl bg-white border border-[#E6DFD5] flex items-center justify-center text-sm shrink-0">${subObj.icon}</span>
+                            <input type="text" id="sub-rename-input" value="${subName}" class="w-full px-3 py-1.5 text-xs bg-white border border-[#E6DFD5] rounded-xl text-[#362C24] font-bold focus:outline-none focus:ring-1 focus:ring-[#4A3C31]">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button type="button" onclick="submitRenameSubCategory('${type}', '${major}', '${subName}')" class="py-2.5 bg-[#4A3C31] hover:bg-[#342921] text-white font-black text-xs rounded-xl shadow-sm transition active:scale-95 cursor-pointer">儲存修改</button>
+                        <button type="button" onclick="submitDeleteSubCategory('${type}', '${major}', '${subName}')" class="py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow-sm transition active:scale-95 cursor-pointer">確認刪除</button>
+                    </div>
+                    
+                    <button type="button" onclick="closeSubActionModal()" class="w-full py-2 bg-white border border-[#E6DFD5] text-[#8A7B70] hover:text-[#4A3C31] font-black text-xs rounded-xl transition active:scale-95 cursor-pointer">取消</button>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+        };
+
+        window.closeSubActionModal = function() {
+            const modal = document.getElementById('sub-action-modal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.submitRenameSubCategory = function(type, major, oldName) {
+            const newName = document.getElementById('sub-rename-input').value.trim();
+            if (!newName) {
+                showToast('請輸入小分類名稱！', 'error');
+                return;
+            }
+
+            const catObj = window.state.categories[type]?.[major];
+            if (!catObj) return;
+
+            // 檢查是否重複
+            if (newName !== oldName && catObj.sub.some(s => s.name === newName)) {
+                showToast('已有同名的小分類！', 'error');
+                return;
+            }
+
+            // 更新小分類名稱
+            const subIndex = catObj.sub.findIndex(s => s.name === oldName);
+            if (subIndex !== -1) {
+                catObj.sub[subIndex].name = newName;
+            }
+
+            // 同步關聯更新所有包含該小分類的歷史交易明細，確保過去資料完好
+            window.state.transactions = window.state.transactions.map(tx => {
+                if (tx.type === type && tx.majorCategory === major && tx.subCategory === oldName) {
+                    return { ...tx, subCategory: newName };
+                }
+                return tx;
+            });
+
+            saveState();
+            closeSubActionModal();
+            showToast(`小分類名稱已成功更新為「${newName}」`);
+            render();
+        };
+
+        window.submitDeleteSubCategory = function(type, major, subName) {
             const currentSubs = window.state.categories[type]?.[major]?.sub || [];
             window.state.categories[type][major].sub = currentSubs.filter(s => s.name !== subName);
             saveState();
-            showToast(`已刪除小分類「${subName}」`, 'info');
+            closeSubActionModal();
+            showToast(`小分類「${subName}」已順利刪除`, 'info');
             render();
         };
 
@@ -1919,6 +1999,7 @@
             render();
         };
 
+        // 💡 補回綁定於下拉選單切換之事件函式
         window.setCategoriesEditMajor = function(val) {
             window.state.editingMajorCat = val;
             render();
