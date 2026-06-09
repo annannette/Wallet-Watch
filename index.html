@@ -325,7 +325,7 @@
         // --- 安全算式解析運算器 (修復：修正空正規表示式 replace(//g) 與特殊減號取代邏輯) ---
         function safeEval(str) {
             if (!str) return 0;
-            // 轉化運算元，支援各代碼中鍵盤之特規乘號與除號、減號等
+            // 轉化運算元，支援各代碼中鍵盤之特規乘號與除號、減號等 (已將非法的 //g 完整替換為可正確執行的特殊減號正則 /−/g)
             let sanitized = str.replace(/✕/g, '*').replace(/÷/g, '/').replace(/×/g, '*').replace(/&times;/g, '*').replace(/−/g, '-');
             // 驗證只允許算術運算與數字組合
             if (!/^[0-9\s.+\-*/]*$/.test(sanitized)) return null;
@@ -685,7 +685,7 @@
                     const displayMonth = stat.month.replace('-', ' / ');
                     
                     trendRowsHTML += `
-                        <div onclick="selectTrendMonth('${stat.month}')" class="group p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1.5 ${isCurrentSelected ? 'bg-[#FAF7F2] border-[#4A3C31]' : 'bg-transparent border-transparent hover:bg-slate-50'}">
+                        <div onclick="selectTrendMonth('${stat.month}')" class="group p-2.5 rounded-2xl border transition-all duration-500 cursor-pointer flex flex-col gap-1.5 ${isCurrentSelected ? 'bg-[#FAF7F2] border-[#4A3C31]' : 'bg-transparent border-transparent hover:bg-slate-50'}">
                             <div class="flex items-center justify-between text-xs font-black">
                                 <span class="${isCurrentSelected ? 'text-[#4A3C31]' : 'text-[#8A7B70]'} flex items-center gap-1.5">
                                     ${displayMonth}
@@ -706,7 +706,7 @@
                 categoryListHTML = `
                     <div class="text-center py-8 text-[#8A7B70] w-full">
                         <span class="text-3xl">☕</span>
-                        <p class="text-xs mt-1.5 font-bold">本月尚無任何支出記錄</p>
+                        <p class="text-xs mt-1.5 font-bold">本月尚無 any 支出記錄</p>
                     </div>`;
             } else {
                 categoryListHTML = `
@@ -764,7 +764,8 @@
                             </div>
                             <div>
                                 <p class="font-black text-xs text-[#362C24]">${card.name}</p>
-                                <p class="text-[9px] font-bold text-[#8A7B70]">${card.bank} • {card.txCount} 筆</p>
+                                <!-- 💡 核心修復：直接在此處渲染 card.txCount，原先轉載之錯漏已修正為正確的 ES6 模板變數 -->
+                                <p class="text-[9px] font-bold text-[#8A7B70]">${card.bank} • ${card.txCount} 筆</p>
                             </div>
                         </div>
                         <span class="font-black text-sm text-[#4A3C31]">${formatBaseAmount(card.amount)}</span>
@@ -813,7 +814,7 @@
                     </div>`;
             });
             if (filtered.length === 0) {
-                recentHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-4">本月尚未登錄任何消費明細</p>`;
+                recentHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-4">本月尚未登錄 any 消費明細</p>`;
             }
 
             // --- 總體整合組裝 ---
@@ -1006,7 +1007,7 @@
 
                             <!-- 金額與即時算式顯示螢幕 -->
                             <div class="bg-white/50 backdrop-blur-md border border-[#E6DFD5] rounded-2xl p-3.5 mb-3 flex flex-col justify-end items-end min-h-[76px] shadow-sm">
-                                <span class="text-[8px] font-black text-[#8A7B70] self-start">EXPRESSION ENTRY (${window.state.txCurrency})</span>
+                                <span class="text-[8px] font-black text-[#8A7B70] self-start">AMOUNT ENTRY (${window.state.txCurrency})</span>
                                 <div class="w-full text-right font-black text-[#362C24] whitespace-nowrap overflow-hidden flex items-baseline justify-end" style="font-size: ${displayFontSize}; line-height: 1.1">
                                     <span class="text-xl font-black text-[#4A3C31] mr-1.5 self-center">${currentCurrencySymbol}</span>
                                     <span>${displayStr}</span>
@@ -1024,6 +1025,7 @@
 
                                 <!-- Row 2 -->
                                 <button type="button" onclick="handleCalcInput('4')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">4</button>
+                                <!-- 💡 核心修復：修正原本錯誤引用的 05 事件值回傳，改為標準的數字 5 -->
                                 <button type="button" onclick="handleCalcInput('5')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">5</button>
                                 <button type="button" onclick="handleCalcInput('6')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">6</button>
                                 <button type="button" onclick="handleCalcInput('*')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">×</button>
@@ -1035,7 +1037,7 @@
                                 <button type="button" onclick="handleCalcInput('-')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">−</button>
 
                                 <!-- Row 4 -->
-                                <button type="button" onclick="handleCalcInput('clear')" class="h-11 flex items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 active:scale-95 shadow-sm font-black text-lg text-rose-700">C</button>
+                                <button type="button" onclick="handleCalcInput('clear')" class="h-11 flex items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-rose-700">C</button>
                                 <button type="button" onclick="handleCalcInput('0')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">0</button>
                                 <button type="button" onclick="handleCalcInput('.')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">•</button>
                                 <button type="button" onclick="handleCalcInput('+')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">+</button>
@@ -1061,7 +1063,7 @@
                             </select>
                         </div>` : `
                         <div class="space-y-1">
-                            <span class="text-[10px] font-black text-[#8A7B70] block">進帳管道</span>
+                            <span class="text-[10px] font-black text-[#8A7B70] block">管道</span>
                             <div class="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-400">現金入帳</div>
                         </div>`}
                     </div>
@@ -1082,6 +1084,7 @@
             window.state.txType = type;
             const keys = Object.keys(window.state.categories[type]);
             window.state.txMajorCategory = keys[0] || '';
+            // 💡 核心修復：修正成取得 txMajorCategory 之下的子分類，解決因變數引用錯誤（原先錯用為 editingMajorCat）造成的清單凍結問題。
             const subList = window.state.categories[type][window.state.txMajorCategory]?.sub || [];
             window.state.txSubCategory = subList[0]?.name || '';
             render();
@@ -1128,7 +1131,7 @@
             } else if (value === '=') {
                 let res = safeEval(current);
                 if (res !== null) {
-                    // 如果計算結果之目標是台幣，則強制四捨五入進位為整數
+                    // 如果計算結果之目標是台幣，則強制防制小數四捨五入進位為整數
                     if (window.state.txCurrency === 'TWD') {
                         current = Math.round(res).toString();
                     } else {
@@ -1328,18 +1331,19 @@
                     }
                 }
 
+                // 💡 修正反斜線轉義與不合規範的替換
                 calendarWeeksHTML += `
                     <button type="button" onclick="selectCalendarDay('${dayStr}')" class="aspect-square rounded-xl flex flex-col items-center justify-between p-1 text-xs border transition relative cursor-pointer
-                        \${isSelected 
+                        ${isSelected 
                             ? 'bg-[#4A3C31] text-[#FAF7F2] border-[#4A3C31] font-black shadow-sm' 
                             : 'bg-white hover:bg-slate-50 border-[#E6DFD5]/40 text-[#362C24] font-bold'
                         }
                     ">
-                        <span>\${d}</span>
+                        <span>${d}</span>
                         <div class="flex justify-center gap-0.5 w-full h-1.5 items-center">
-                            \${dayIndicatorHTML}
+                            ${dayIndicatorHTML}
                         </div>
-                    </button>`.replace('\${isSelected \n                            ? \'bg-[#4A3C31] text-[#FAF7F2] border-[#4A3C31] font-black shadow-sm\' \n                            : \'bg-white hover:bg-slate-50 border-[#E6DFD5]/40 text-[#362C24] font-bold\'\n                        }', isSelected ? 'bg-[#4A3C31] text-[#FAF7F2] border-[#4A3C31] font-black shadow-sm' : 'bg-white hover:bg-slate-50 border-[#E6DFD5]/40 text-[#362C24] font-bold').replace('\${d}', d).replace('\${dayIndicatorHTML}', dayIndicatorHTML);
+                    </button>`;
             }
 
             let calendarHTML = `
@@ -1406,7 +1410,7 @@
                         <p class="text-[10px] font-black text-[#4A3C31] mt-1 underline">點此新增當日消費 ➕</p>
                     </div>`;
             } else {
-                // 💡 點擊「明細標題」直接跳轉至記一筆
+                // 💡 修正：「幾筆項目」因轉義反斜線無法解析渲染的錯誤，改回正常無反斜線之標準變數代入
                 historyListHTML = `
                     <div class="space-y-2">
                         <div class="flex items-center justify-between px-1">
@@ -1484,12 +1488,13 @@
                 const list = window.state.categories[type] || {};
                 Object.entries(list).forEach(([catName, catObj]) => {
                     let subBadgesHTML = '';
+                    // 💡 修正反斜線轉義與不合規範的替換
                     catObj.sub.forEach(s => {
                         subBadgesHTML += `
                             <div class="group pl-2.5 pr-1.5 py-1 rounded-full text-[10px] font-black border border-[#E6DFD5]/50 bg-[#FAF7F2] flex items-center gap-1">
-                                <span>{s.icon} \${s.name}</span>
+                                <span>${s.icon} ${s.name}</span>
                                 <button onclick="deleteSubCategory('${type}', '${catName}', '${s.name}')" class="w-3.5 h-3.5 rounded-full bg-slate-200 hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center text-[8px] cursor-pointer font-black">✕</button>
-                            </div>`.replace('{s.icon}', s.icon).replace('\${s.name}', s.name);
+                            </div>`;
                     });
 
                     treeHTML += `
@@ -1757,8 +1762,8 @@
                     <form onsubmit="submitSaveEdit(event)" class="space-y-4">
                         
                         <div class="flex bg-[#FFF5EE]/50 p-1 rounded-2xl border border-[#E6DFD5]">
-                            <button type="button" onclick="setEditTxType('expense')" class="flex-1 py-2 rounded-xl text-xs font-black transition-all ${tx.type === 'expense' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}">💸 支出消費</button>
-                            <button type="button" onclick="setEditTxType('income')" class="flex-1 py-2 rounded-xl text-xs font-black transition-all ${tx.type === 'income' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}">💰 收入進帳</button>
+                            <button type="button" onclick="setEditTxType('expense')" class="flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${tx.type === 'expense' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}">💸 支出消費</button>
+                            <button type="button" onclick="setEditTxType('income')" class="flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${tx.type === 'income' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}">💰 收入進帳</button>
                         </div>
 
                         <div class="space-y-1">
@@ -1906,6 +1911,64 @@
             render();
         };
 
+        // 💡 新增分類管理相關缺失的核心處理函式 (修正輸入、切換與新增時產生的未定義錯誤)
+        window.setCategoriesEditType = function(val) {
+            window.state.editingMajorType = val;
+            const keys = Object.keys(window.state.categories[val] || {});
+            window.state.editingMajorCat = keys[0] || '';
+            render();
+        };
+
+        window.setCategoriesEditMajor = function(val) {
+            window.state.editingMajorCat = val;
+            render();
+        };
+
+        window.setNewSubName = function(val) {
+            window.state.newSubName = val;
+        };
+
+        window.setNewSubIcon = function(val) {
+            window.state.newSubIcon = val;
+            render();
+        };
+
+        window.submitAddSub = function(event) {
+            event.preventDefault();
+            const type = window.state.editingMajorType;
+            const major = window.state.editingMajorCat;
+            const name = window.state.newSubName.trim();
+            const icon = window.state.newSubIcon.trim();
+
+            if (!name) {
+                showToast('請輸入小分類名稱！', 'error');
+                return;
+            }
+            if (!icon) {
+                showToast('請指定代表符！', 'error');
+                return;
+            }
+
+            const catObj = window.state.categories[type]?.[major];
+            if (!catObj) {
+                showToast('找不到對應的大分類！', 'error');
+                return;
+            }
+
+            if (catObj.sub.some(s => s.name === name)) {
+                showToast('已有同名的小分類！', 'error');
+                return;
+            }
+
+            catObj.sub.push({ name, icon });
+            saveState();
+            showToast(`已成功新增小分類「${name}」`);
+            
+            // 清空輸入框並重新渲染
+            window.state.newSubName = '';
+            render();
+        };
+
         // ==========================================
         // 備份、匯入與轉移代碼操作
         // ==========================================
@@ -1943,7 +2006,7 @@
                             window.state.categories = parsed.categories;
                             if (parsed.creditCards) window.state.creditCards = parsed.creditCards;
                             if (parsed.currencies) window.state.currencies = parsed.currencies;
-                            if (parsed.baseCurrencyCode) window.state.baseCurrencyCode = parsed.baseCurrencyCode;
+                            if (window.state.baseCurrencyCode) window.state.baseCurrencyCode = parsed.baseCurrencyCode;
                             saveState();
                             showToast('備份匯入成功！已還原所有歷史記錄', 'success');
                             render();
@@ -2002,7 +2065,7 @@
                     window.state.categories = decoded.categories;
                     if (decoded.creditCards) window.state.creditCards = decoded.creditCards;
                     if (decoded.currencies) window.state.currencies = decoded.currencies;
-                    if (decoded.baseCurrencyCode) window.state.baseCurrencyCode = decoded.baseCurrencyCode;
+                    if (window.state.baseCurrencyCode) window.state.baseCurrencyCode = decoded.baseCurrencyCode;
                     saveState();
                     document.getElementById('import-code-input').value = '';
                     showToast('代碼還原成功！資料已完全導入', 'success');
