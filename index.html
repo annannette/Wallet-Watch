@@ -175,7 +175,7 @@
         <!-- 擬真 iPhone 觸控條安全區 -->
         <div class="hidden sm:block absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#2C302E] rounded-full pointer-events-none z-40"></div>
 
-        <!-- 底部 iOS 經典阻擋導覽列 (儀表板平鋪與其他按鍵完全水平對齊，無任何多餘位移) -->
+        <!-- 底部 iOS 經典阻擋導覽列 (儀表板平鋪與其他按鍵完全水平對齊，無 any 多餘位移) -->
         <nav class="bg-white/90 backdrop-blur-lg border-t border-[#E6DFD5]/80 py-2.5 shadow-lg z-30 px-3 flex justify-around items-end safe-bottom shrink-0 w-full relative" style="touch-action: none;">
             
             <!-- 1. 歷史明細 -->
@@ -1907,7 +1907,7 @@
             render();
         };
 
-        // 💡 解決刪除小分類未定義之核心函式（升級為彈出式「修改名稱」與「確認刪除」雙效機制）
+        // 💡 解決刪除小分類未定義之核心函式（升級為彈出式「修改名稱與代表符」與「確認刪除」雙效機制）
         window.deleteSubCategory = function(type, major, subName) {
             const modal = document.getElementById('sub-action-modal');
             if (!modal) return;
@@ -1915,6 +1915,7 @@
             const currentSubs = window.state.categories[type]?.[major]?.sub || [];
             const subObj = currentSubs.find(s => s.name === subName) || { icon: '✨', name: subName };
 
+            // 💡 核心修改：將圖示展示改為一個極簡等寬、100% 寬度自適應之 Emoji/代表符輸入框
             modal.innerHTML = `
                 <div class="w-full max-w-[320px] bg-[#FAF7F2] rounded-t-[28px] sm:rounded-[28px] p-6 border-t sm:border border-[#E6DFD5] shadow-[0_10px_35px_rgba(74,60,49,0.25)] space-y-5 animate-slide-up mx-auto">
                     <div class="flex items-center justify-between border-b border-[#E6DFD5] pb-2">
@@ -1923,9 +1924,9 @@
                     </div>
                     
                     <div class="space-y-1.5">
-                        <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改分類名稱</span>
+                        <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改圖示與名稱</span>
                         <div class="flex gap-2">
-                            <span class="w-9 h-9 rounded-xl bg-white border border-[#E6DFD5] flex items-center justify-center text-sm shrink-0">${subObj.icon}</span>
+                            <input type="text" id="sub-reicon-input" value="${subObj.icon}" maxLength="2" class="w-12 h-9 text-center bg-white border border-[#E6DFD5] rounded-xl text-sm font-black focus:outline-none focus:ring-1 focus:ring-[#4A3C31]" placeholder="圖示">
                             <input type="text" id="sub-rename-input" value="${subName}" class="w-full px-3 py-1.5 text-xs bg-white border border-[#E6DFD5] rounded-xl text-[#362C24] font-bold focus:outline-none focus:ring-1 focus:ring-[#4A3C31]">
                         </div>
                     </div>
@@ -1948,6 +1949,7 @@
 
         window.submitRenameSubCategory = function(type, major, oldName) {
             const newName = document.getElementById('sub-rename-input').value.trim();
+            const newIcon = document.getElementById('sub-reicon-input').value.trim() || '✨';
             if (!newName) {
                 showToast('請輸入小分類名稱！', 'error');
                 return;
@@ -1962,10 +1964,11 @@
                 return;
             }
 
-            // 更新小分類名稱
+            // 更新小分類名稱與代表圖
             const subIndex = catObj.sub.findIndex(s => s.name === oldName);
             if (subIndex !== -1) {
                 catObj.sub[subIndex].name = newName;
+                catObj.sub[subIndex].icon = newIcon;
             }
 
             // 同步關聯更新所有包含該小分類的歷史交易明細，確保過去資料完好
@@ -1978,7 +1981,7 @@
 
             saveState();
             closeSubActionModal();
-            showToast(`小分類名稱已成功更新為「${newName}」`);
+            showToast(`小分類已成功更新為「${newIcon} ${newName}」`);
             render();
         };
 
