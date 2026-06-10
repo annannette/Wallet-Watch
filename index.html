@@ -1023,7 +1023,7 @@
                             </div>
 
                             <!-- 完美對稱與標準化等寬 4x5 算式大鍵盤 -->
-                            <div class="grid grid-cols-4 gap-2 p-1.5 bg-white/30 backdrop-blur-xl border border-[#E6DFD5] rounded-2xl shadow-md">
+                            <div class="grid grid-cols-4 gap-2 p-1.5 bg-white/30 backdrop-blur-xl border border-white/40 rounded-2xl shadow-md">
                                 <!-- Row 1 -->
                                 <button type="button" onclick="handleCalcInput('7')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">7</button>
                                 <button type="button" onclick="handleCalcInput('8')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">8</button>
@@ -1060,18 +1060,21 @@
                     <div class="grid grid-cols-2 gap-3.5">
                         <div class="space-y-1">
                             <span class="text-[10px] font-black text-[#8A7B70] block">日期</span>
-                            <input type="date" required value="${window.state.txDate}" onchange="setAddTxDate(this.value)" class="w-full px-3 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none">
+                            <!-- 💡 核心修改：將高度設定為 h-9 移除預設 py 襯距，使與右側對齊一致 -->
+                            <input type="date" required value="${window.state.txDate}" onchange="setAddTxDate(this.value)" class="w-full h-9 px-3 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none">
                         </div>
                         ${window.state.txType === 'expense' ? `
                         <div class="space-y-1">
                             <span class="text-[10px] font-black text-[#8A7B70] block">付款方式</span>
-                            <select onchange="setAddTxPaymentMethod(this.value)" class="w-full px-3 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none">
+                            <!-- 💡 核心修改：將高度設定為 h-9 移除預設 py 襯距，使與左側日期高度完全一致 -->
+                            <select onchange="setAddTxPaymentMethod(this.value)" class="w-full h-9 px-3 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none">
                                 ${paymentOptions}
                             </select>
                         </div>` : `
                         <div class="space-y-1">
                             <span class="text-[10px] font-black text-[#8A7B70] block">管道</span>
-                            <div class="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-400">現金入帳</div>
+                            <!-- 💡 核心修改：將高度設定為 h-9 移除預設 py-2.5，並加入 flex items-center 垂直置中文字，使與左側日期高度完全一致 -->
+                            <div class="w-full h-9 px-3 bg-[#FAF7F2] border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-400 flex items-center">現金入帳</div>
                         </div>`}
                     </div>
 
@@ -1922,7 +1925,7 @@
             const currentSubs = window.state.categories[type]?.[major]?.sub || [];
             const subObj = currentSubs.find(s => s.name === subName) || { icon: '✨', name: subName };
 
-            // 💡 核心修改：將圖示展示改為一個極簡等寬、100% 寬度自適應之 Emoji/代表符輸入框
+            // 💡 核心修改：將高度固定為 h-9，讓上下邊緣完全一致
             modal.innerHTML = `
                 <div class="w-full max-w-[320px] bg-[#FAF7F2] rounded-t-[28px] sm:rounded-[28px] p-6 border-t sm:border border-[#E6DFD5] shadow-[0_10px_35px_rgba(74,60,49,0.25)] space-y-5 animate-slide-up mx-auto">
                     <div class="flex items-center justify-between border-b border-[#E6DFD5] pb-2">
@@ -1934,7 +1937,8 @@
                         <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改圖示與名稱</span>
                         <div class="flex gap-2">
                             <input type="text" id="sub-reicon-input" value="${subObj.icon}" maxLength="2" class="w-12 h-9 text-center bg-white border border-[#E6DFD5] rounded-xl text-sm font-black focus:outline-none focus:ring-1 focus:ring-[#4A3C31]" placeholder="圖示">
-                            <input type="text" id="sub-rename-input" value="${subName}" class="w-full px-3 py-1.5 text-xs bg-white border border-[#E6DFD5] rounded-xl text-[#362C24] font-bold focus:outline-none focus:ring-1 focus:ring-[#4A3C31]">
+                            <!-- 💡 核心修改：將高度設定為 h-9，讓上下邊緣與左邊的圖示輸入框完全一致 -->
+                            <input type="text" id="sub-rename-input" value="${subName}" class="w-full h-9 px-3 bg-white border border-[#E6DFD5] rounded-xl text-[#362C24] text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#4A3C31]">
                         </div>
                     </div>
 
