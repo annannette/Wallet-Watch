@@ -414,7 +414,7 @@
                             </svg>`;
                 case '交通':
                     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="${className}">
-                              <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1h2" fill="currentColor" fill-opacity="0.15" />
+                              <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" fill="currentColor" fill-opacity="0.15" />
                               <circle cx="7" cy="17" r="2" />
                               <circle cx="17" cy="17" r="2" />
                             </svg>`;
@@ -780,7 +780,7 @@
                     </div>`;
             });
             if (window.state.creditCards.length === 0) {
-                cardsHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-2">尚未綁定任何信用卡</p>`;
+                cardsHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py8">尚未綁定任何信用卡</p>`;
             }
 
             // --- 最近明細 (修正：最上方大字金額永遠為換算後台幣，下方顯示原始幣值) ---
@@ -822,7 +822,7 @@
                     </div>`;
             });
             if (filtered.length === 0) {
-                recentHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-8
+                recentHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-10
                 ">本月尚未登錄任何消費明細</p>`;
             }
 
@@ -1096,7 +1096,7 @@
             window.state.txType = type;
             const keys = Object.keys(window.state.categories[type]);
             window.state.txMajorCategory = keys[0] || '';
-            // 💡 核心修復：修正成取得 txMajorCategory 之下的子分類，解決因變數引用錯誤（原先錯用為 editingMajorCat）造成的清單凍結問題。
+            // 💡 核心修復：修正成取得 txMajorCategory 之下的子分類，解決原本寫錯成使用 Categories 頁籤的暫存變數（editingMajorCat）導致的清單不更新或卡死問題
             const subList = window.state.categories[type][window.state.txMajorCategory]?.sub || [];
             window.state.txSubCategory = subList[0]?.name || '';
             render();
@@ -1531,12 +1531,12 @@
 
                         <form onsubmit="submitAddSub(event)" class="space-y-2.5">
                             <div class="grid grid-cols-2 gap-2">
-                                <select onchange="setCategoriesEditType(this.value)" class="px-2 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
+                                <select onchange="setCategoriesEditType(this.value)" class="px-2 py-1.5 text-xs bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
                                     <option value="expense" ${window.state.editingMajorType === 'expense' ? 'selected' : ''}>支出類別</option>
                                     <option value="income" ${window.state.editingMajorType === 'income' ? 'selected' : ''}>收入類別</option>
                                 </select>
 
-                                <select id="cat-major-select" onchange="setCategoriesEditMajor(this.value)" class="px-2 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
+                                <select id="cat-major-select" onchange="setCategoriesEditMajor(this.value)" class="px-2 py-1.5 text-xs bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-black focus:outline-none">
                                     ${majorOptions}
                                 </select>
                             </div>
@@ -1585,7 +1585,7 @@
                         <span class="font-black text-[#362C24]">${curr.code} (${curr.name})</span>
                         <div class="flex items-center gap-1.5">
                             <span class="text-slate-400">1 =</span>
-                            <input type="number" step="any" required id="rate-input-${curr.code}" value="${curr.rateToBase}" class="w-20 text-right px-2 py-1 bg-[#FAF7F2] border border-[#E6DFD5] rounded font-black focus:outline-none">
+                            <input type="number" step="any" required id="rate-input-${curr.code}" value="${curr.rateToBase}" class="w-20 text-right px-2 py-1 bg-[#FAF7F2] border-[#E6DFD5] rounded font-black focus:outline-none">
                             <span class="text-slate-400">NTD</span>
                         </div>
                     </div>`;
