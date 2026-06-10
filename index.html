@@ -42,7 +42,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            position: fixed; /* 徹底鎖定最外層視窗，阻止 iOS Safari 拖動回彈造成導覽列晃動 */
+            position: relative; /* 💡 修正：由 fixed 改為 relative，避免 iOS Safari 彈出虛擬鍵盤時視區偏移與點擊失效的當機 Bug */
             top: 0;
             left: 0;
             display: flex;
@@ -327,10 +327,10 @@
             localStorage.setItem('ios_budget_currencies', JSON.stringify(window.state.currencies));
         }
 
-        // --- 安全算式解析運算器 (修復：修正空正規表示式 replace(//g) 與特殊減號取代邏輯) ---
+        // --- 安全算式解析運算器 (修復：修正空正規表示式 replace(//g) 與特殊減號取代邏輯，避免引發 Unexpected token 'if' 嚴重當機) ---
         function safeEval(str) {
             if (!str) return 0;
-            // 轉化運算元，支援各代碼中鍵盤之特規乘號與除號、減號等 (已將非法的 //g 完整替換為可正確執行的特殊減號正則 /−/g)
+            // 💡 核心修復：將原本非法的 //g 完整替換為正確的特殊減號 regex 轉義字元 /−/g
             let sanitized = str.replace(/✕/g, '*').replace(/÷/g, '/').replace(/×/g, '*').replace(/&times;/g, '*').replace(/−/g, '-');
             // 驗證只允許算術運算與數字組合
             if (!/^[0-9\s.+\-*/]*$/.test(sanitized)) return null;
@@ -385,7 +385,7 @@
             return `${Math.max(1.6, dynamicSize)}rem`;
         }
 
-        // --- Toast 提示功能 (修復：補回被遺漏定義的 showToast 函式) ---
+        // --- Toast 提示功能 ---
         function showToast(message, type = 'success') {
             const toastEl = document.getElementById('toast');
             if (!toastEl) return;
@@ -606,57 +606,6 @@
 
             const maxMonthlySpend = monthlyTrendStats.length > 0 ? Math.max(...monthlyTrendStats.map(m => m.amount), 1) : 1;
 
-            // 3. 類別佔比
-            const summary = {};
-            Object.keys(window.state.categories.expense).forEach(cat => {
-                summary[cat] = { amount: 0, percentage: 0, colorClass: window.state.categories.expense[cat].color, icon: window.state.categories.expense[cat].icon };
-            });
-
-            filtered.forEach(tx => {
-                if (tx.type === 'expense') {
-                    const converted = convertToBase(tx.amount, tx.currency);
-                    if (summary[tx.majorCategory]) {
-                        summary[tx.majorCategory].amount += converted;
-                    }
-                }
-            });
-
-            const categoryExpenses = Object.entries(summary)
-                .map(([name, data]) => ({ name, ...data }))
-                .filter(c => c.amount > 0)
-                .sort((a, b) => b.amount - a.amount);
-
-            let totalCategorySpend = categoryExpenses.reduce((sum, c) => sum + c.amount, 0);
-            categoryExpenses.forEach(c => {
-                if (totalCategorySpend > 0) {
-                    c.percentage = Math.round((c.amount / totalCategorySpend) * 100);
-                }
-            });
-
-            // SVG 甜甜圈圓餅圖生成
-            let accumPercentage = 0;
-            const colors = ['#4A3C31', '#8A7B70', '#BCA38D', '#D2C5B4', '#A39385', '#E6DFD5'];
-            const segments = categoryExpenses.map((cat, idx) => {
-                const percentage = cat.percentage;
-                const start = accumPercentage;
-                accumPercentage += percentage;
-                return {
-                    name: cat.name,
-                    percentage,
-                    start,
-                    color: colors[idx % colors.length]
-                };
-            });
-
-            let circlesHTML = `<circle cx="18" cy="18" r="15.915" fill="none" stroke="#FAF7F2" stroke-width="4"></circle>`;
-            segments.forEach(segment => {
-                const strokeDasharray = `${segment.percentage} ${100 - segment.percentage}`;
-                const strokeDashoffset = 100 - segment.start;
-                circlesHTML += `<circle cx="18" cy="18" r="15.915" fill="none" stroke="${segment.color}" stroke-width="4" stroke-dasharray="${strokeDasharray}" stroke-dashoffset="${strokeDashoffset}" class="transition-all duration-500"></circle>`;
-            });
-
-            const spendingRate = incomeTotal > 0 ? Math.round((expenseTotal / incomeTotal) * 100) : 100;
-
             // 4. 信用卡累積消費
             const cardTotals = {};
             window.state.creditCards.forEach(card => {
@@ -705,44 +654,6 @@
                 });
             }
 
-            // --- 類別佔比 HTML 區塊 ---
-            let categoryListHTML = '';
-            if (categoryExpenses.length === 0 || categoryExpenses.every(c => c.amount === 0)) {
-                // 💡 修正細節：將原本的「本月尚無 any 支出記錄」更新為「本月尚無任何支出紀錄」
-                categoryListHTML = `
-                    <div class="text-center py-8 text-[#8A7B70] w-full">
-                        <span class="text-3xl">☕</span>
-                        <p class="text-xs mt-1.5 font-bold">本月尚無任何支出紀錄</p>
-                    </div>`;
-            } else {
-                categoryListHTML = `
-                    <div class="flex items-center gap-4 w-full">
-                        <div class="w-24 h-24 shrink-0 relative">
-                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                ${circlesHTML}
-                            </svg>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span class="text-[9px] font-black text-[#8A7B70] leading-none">支出率</span>
-                                <span class="text-sm font-black text-[#4A3C31]">${spendingRate}%</span>
-                            </div>
-                        </div>
-                        <div class="flex-1 space-y-2">`;
-                categoryExpenses.forEach((cat, idx) => {
-                    const colorLabel = colors[idx % colors.length];
-                    categoryListHTML += `
-                            <div class="flex items-center justify-between text-xs">
-                                <!-- 💡 核心修改：將比率 (cat.percentage%) 改為顯示在分類名稱文字的後面 -->
-                                <div class="flex items-center gap-1.5 font-bold text-[#8A7B70]">
-                                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${colorLabel}"></span>
-                                    <span>${cat.name} (${cat.percentage}%)</span>
-                                </div>
-                                <!-- 💡 核心修改：將消費總金額放在最右邊 -->
-                                <span class="font-black text-[#362C24]">${formatBaseAmount(cat.amount)}</span>
-                            </div>`;
-                });
-                categoryListHTML += `</div></div>`;
-            }
-
             // --- 信用卡累積消費 HTML (與您設計之暖棕大地色系實體質感 mini 信用卡 Icon 完美置中融合) ---
             let cardsHTML = '';
             activeCards.forEach(card => {
@@ -780,7 +691,7 @@
                     </div>`;
             });
             if (window.state.creditCards.length === 0) {
-                cardsHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py8">尚未綁定任何信用卡</p>`;
+                cardsHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-2">尚未綁定任何信用卡</p>`;
             }
 
             // --- 最近明細 (修正：最上方大字金額永遠為換算後台幣，下方顯示原始幣值) ---
@@ -822,7 +733,7 @@
                     </div>`;
             });
             if (filtered.length === 0) {
-                recentHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-10
+                recentHTML = `<p class="text-center text-xs font-bold text-[#8A7B70] py-8
                 ">本月尚未登錄任何消費明細</p>`;
             }
 
@@ -859,14 +770,6 @@
                             <span class="text-[9px] bg-[#FAF7F2] border border-[#E6DFD5] px-2 py-0.5 rounded-full font-black text-[#8A7B70]">僅統計支出</span>
                         </div>
                         <div class="space-y-3">${trendRowsHTML}</div>
-                    </div>
-
-                    <!-- 圓餅類別佔比分析 -->
-                    <div class="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
-                        <h3 class="text-xs font-black text-[#8A7B70] uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
-                            <span>📊</span> 本月支出類別占比
-                        </h3>
-                        <div class="flex items-center gap-4">${categoryListHTML}</div>
                     </div>
 
                     <!-- 信用卡消費統計 -->
@@ -1257,6 +1160,112 @@
                 }
             }
 
+            const filtered = window.state.transactions.filter(tx => tx.date.startsWith(window.state.selectedMonth));
+
+            // 類別占比計算與 HTML 生成
+            let expenseTotal = 0;
+            let incomeTotal = 0;
+            filtered.forEach(tx => {
+                const converted = convertToBase(tx.amount, tx.currency);
+                if (tx.type === 'expense') {
+                    expenseTotal += converted;
+                } else {
+                    incomeTotal += converted;
+                }
+            });
+
+            const summary = {};
+            Object.keys(window.state.categories.expense).forEach(cat => {
+                summary[cat] = { amount: 0, percentage: 0, colorClass: window.state.categories.expense[cat].color, icon: window.state.categories.expense[cat].icon };
+            });
+
+            filtered.forEach(tx => {
+                if (tx.type === 'expense') {
+                    const converted = convertToBase(tx.amount, tx.currency);
+                    if (summary[tx.majorCategory]) {
+                        summary[tx.majorCategory].amount += converted;
+                    }
+                }
+            });
+
+            const categoryExpenses = Object.entries(summary)
+                .map(([name, data]) => ({ name, ...data }))
+                .filter(c => c.amount > 0)
+                .sort((a, b) => b.amount - a.amount);
+
+            let totalCategorySpend = categoryExpenses.reduce((sum, c) => sum + c.amount, 0);
+            categoryExpenses.forEach(c => {
+                if (totalCategorySpend > 0) {
+                    c.percentage = Math.round((c.amount / totalCategorySpend) * 100);
+                }
+            });
+
+            let circlesHTML = `<circle cx="18" cy="18" r="15.915" fill="none" stroke="#FAF7F2" stroke-width="4"></circle>`;
+            let accumPercentage = 0;
+            const colors = ['#4A3C31', '#8A7B70', '#BCA38D', '#D2C5B4', '#A39385', '#E6DFD5'];
+            const segments = categoryExpenses.map((cat, idx) => {
+                const percentage = cat.percentage;
+                const start = accumPercentage;
+                accumPercentage += percentage;
+                return {
+                    name: cat.name,
+                    percentage,
+                    start,
+                    color: colors[idx % colors.length]
+                };
+            });
+
+            segments.forEach(segment => {
+                const strokeDasharray = `${segment.percentage} ${100 - segment.percentage}`;
+                const strokeDashoffset = 100 - segment.start;
+                circlesHTML += `<circle cx="18" cy="18" r="15.915" fill="none" stroke="${segment.color}" stroke-width="4" stroke-dasharray="${strokeDasharray}" stroke-dashoffset="${strokeDashoffset}" class="transition-all duration-500"></circle>`;
+            });
+
+            const spendingRate = incomeTotal > 0 ? Math.round((expenseTotal / incomeTotal) * 100) : 100;
+
+            let categoryListHTML = '';
+            if (categoryExpenses.length === 0 || categoryExpenses.every(c => c.amount === 0)) {
+                categoryListHTML = `
+                    <div class="text-center py-8 text-[#8A7B70] w-full">
+                        <span class="text-3xl">☕</span>
+                        <p class="text-xs mt-1.5 font-bold">本月尚無任何支出紀錄</p>
+                    </div>`;
+            } else {
+                categoryListHTML = `
+                    <div class="flex items-center gap-4 w-full">
+                        <div class="w-24 h-24 shrink-0 relative">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                ${circlesHTML}
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span class="text-[9px] font-black text-[#8A7B70] leading-none">支出率</span>
+                                <span class="text-sm font-black text-[#4A3C31]">${spendingRate}%</span>
+                            </div>
+                        </div>
+                        <div class="flex-1 space-y-2">`;
+                categoryExpenses.forEach((cat, idx) => {
+                    const colorLabel = colors[idx % colors.length];
+                    categoryListHTML += `
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-1.5 font-bold text-[#8A7B70]">
+                                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${colorLabel}"></span>
+                                    <span>${cat.name} (${cat.percentage}%)</span>
+                                </div>
+                                <span class="font-black text-[#362C24]">${formatBaseAmount(cat.amount)}</span>
+                            </div>`;
+                });
+                categoryListHTML += `</div></div>`;
+            }
+
+            const categoryDistributionHTML = `
+                <div class="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
+                    <h3 class="text-xs font-black text-[#8A7B70] uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
+                        <span>📊</span> 本月支出類別占比
+                    </h3>
+                    <div class="flex items-center gap-4">${categoryListHTML}</div>
+                </div>
+            `;
+
             // 計算月曆網格資料
             const firstDay = new Date(yearNum, monthNum - 1, 1);
             const startDayOfWeek = firstDay.getDay(); // 0 = Sun, 1 = Mon...
@@ -1376,7 +1385,7 @@
 
             let historyListHTML = '';
             selectedDayTxs.forEach(tx => {
-                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
+                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '🍳', color: 'bg-gray-100 text-gray-500' };
                 const convertedAmount = convertToBase(tx.amount, tx.currency);
                 const showSubCurrency = tx.currency !== window.state.baseCurrencyCode;
 
@@ -1440,6 +1449,7 @@
             container.innerHTML = `
                 <div class="space-y-4">
                     ${filterHeaderHTML}
+                    ${categoryDistributionHTML}
                     ${calendarHTML}
                     ${historyListHTML}
                 </div>`;
@@ -1542,8 +1552,8 @@
                             </div>
 
                             <div class="grid grid-cols-3 gap-2">
-                                <input type="text" required maxLength="8" placeholder="小分類名稱" value="${window.state.newSubName}" oninput="setNewSubName(this.value)" class="col-span-2 px-3 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-slate-700 font-bold focus:outline-none">
-                                <input type="text" required maxLength="2" placeholder="代表符" value="${window.state.newSubIcon}" oninput="setNewSubIcon(this.value)" class="px-2 py-1.5 text-xs bg-[#FAF7F2] border border-[#E6DFD5] rounded-lg text-center font-black focus:outline-none">
+                                <input type="text" required maxLength="8" placeholder="小分類名稱" value="${window.state.newSubName}" oninput="setNewSubName(this.value)" class="col-span-2 px-3 py-1.5 text-xs bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-slate-700 font-bold focus:outline-none">
+                                <input type="text" required maxLength="2" placeholder="代表符" value="${window.state.newSubIcon}" oninput="setNewSubIcon(this.value)" class="px-2 py-1.5 text-xs bg-[#FAF7F2] border-[#E6DFD5] rounded-lg text-center font-black focus:outline-none">
                             </div>
 
                             <div class="flex justify-between p-1.5 bg-slate-50 rounded-lg overflow-x-auto gap-1">
@@ -1994,6 +2004,7 @@
 
             saveState();
             closeSubActionModal();
+            // 💡 修正：將原本筆誤的 showToast+ 修正為標準呼叫 showToast(
             showToast(`小分類已成功更新為「${newIcon} ${newName}」`);
             render();
         };
