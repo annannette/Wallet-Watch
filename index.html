@@ -735,7 +735,8 @@
                                     <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${colorLabel}"></span>
                                     <span>${cat.name}</span>
                                 </div>
-                                <span class="font-black text-[#362C24]">${cat.percentage}%</span>
+                                <!-- 💡 核心修改：在各別分類旁，除百分比外同時顯示各大類別本月的消費總金額 -->
+                                <span class="font-black text-[#362C24]">${formatBaseAmount(cat.amount)} (${cat.percentage}%)</span>
                             </div>`;
                 });
                 categoryListHTML += `</div></div>`;
@@ -784,7 +785,7 @@
             // --- 最近明細 (修正：最上方大字金額永遠為換算後台幣，下方顯示原始幣值) ---
             let recentHTML = '';
             filtered.slice(0, 3).forEach(tx => {
-                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
+                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '🍳', color: 'bg-gray-100 text-gray-500' };
                 const convertedAmount = convertToBase(tx.amount, tx.currency);
                 const showSubCurrency = tx.currency !== window.state.baseCurrencyCode;
 
@@ -928,7 +929,7 @@
             majorCatObj.sub.forEach(subObj => {
                 const isSelected = window.state.txSubCategory === subObj.name;
                 subPillsHTML += `
-                    <button type="button" onclick="setAddSubCategory('${subObj.name}')" class="px-3 py-1.5 rounded-full text-xs font-black border transition-all flex items-center gap-1.5 shadow-sm ${isSelected ? 'border-[#4A3C31] bg-[#4A3C31] text-white' : 'border-slate-100 bg-white text-slate-600'}">
+                    <button type="button" onclick="setAddSubCategory('${subObj.name}')" class="px-3 py-1.5 rounded-full text-xs font-black border transition-all flex items-center gap-1.5 shadow-sm ${isSelected ? 'border-[#4A3C31] bg-[#4A3C31] text-[#FAF7F2]' : 'border-slate-100 bg-white text-slate-600'}">
                         <span>${subObj.icon}</span>
                         <span>${subObj.name}</span>
                     </button>`;
@@ -1023,7 +1024,7 @@
                             </div>
 
                             <!-- 完美對稱與標準化等寬 4x5 算式大鍵盤 -->
-                            <div class="grid grid-cols-4 gap-2 p-1.5 bg-white/30 backdrop-blur-xl border border-white/40 rounded-2xl shadow-md">
+                            <div class="grid grid-cols-4 gap-2 p-1.5 bg-white/30 backdrop-blur-xl border border-[#E6DFD5] rounded-2xl shadow-md">
                                 <!-- Row 1 -->
                                 <button type="button" onclick="handleCalcInput('7')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">7</button>
                                 <button type="button" onclick="handleCalcInput('8')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">8</button>
@@ -1992,7 +1993,7 @@
 
             saveState();
             closeSubActionModal();
-            showToast(`小分類已成功更新為「${newIcon} ${newName}」`);
+            showToast+`小分類已成功更新為「${newIcon} ${newName}」`;
             render();
         };
 
