@@ -176,7 +176,7 @@
         <div class="hidden sm:block absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#2C302E] rounded-full pointer-events-none z-40"></div>
 
         <!-- 底部 iOS 經典阻擋導覽列 (儀表板平鋪與其他按鍵完全水平對齊，無 any 多餘位移) -->
-        <nav class="bg-white/90 backdrop-blur-lg border-t border-[#E6DFD5]/80 py-2.5 shadow-lg z-30 px-3 flex justify-around items-end safe-bottom shrink-0 w-full relative" style="touch-action: none;">
+        <nav class="bg-white/90 backdrop-blur-lg border-t border-[#E6DFD5]/80 py-2.5 shadow-lg z-30 px-3 flex justify-around items-center h-16 safe-bottom shrink-0 w-full relative" style="touch-action: none;">
             
             <!-- 1. 歷史明細 -->
             <button onclick="switchTab('history')" id="tab-history" class="flex flex-col items-center gap-1 transition-all duration-150 cursor-pointer text-slate-400 font-bold">
@@ -266,7 +266,7 @@
             ];
         }
 
-        // --- 全域應用狀態 (追加 selectedDay 儲存當日選定) ---
+        // --- 全域應用狀態 ---
         window.state = {
             transactions: JSON.parse(localStorage.getItem('ios_budget_transactions')) || getInitialTransactions(),
             categories: JSON.parse(localStorage.getItem('ios_budget_categories')) || DEFAULT_CATEGORIES,
@@ -277,7 +277,7 @@
             selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
             selectedDay: '', // 當前選定的月曆日期 
             
-            // 💡 解決類別占比點開的展開狀態 (在 state 中初始化)
+            // 類別占比點開的展開狀態
             expandedCategory: null, 
 
             // 記帳狀態 (支援算式)
@@ -330,7 +330,7 @@
             localStorage.setItem('ios_budget_currencies', JSON.stringify(window.state.currencies));
         }
 
-        // --- 安全算式解析運算器 (修復：修正空正規表示式 replace(//g) 與特殊減號取代邏輯，避免引發 Unexpected token 'if' 嚴重當機) ---
+        // --- 安全算式解析運算器 (修復：修正空正規表示式 replace(//g) 與特殊減號取代邏輯, 避免引發 Unexpected token 'if' 嚴重當機) ---
         function safeEval(str) {
             if (!str) return 0;
             // 轉化運算元，支援各代碼中鍵盤之特規乘號與除號、減號等 (已將非法的 //g 完整替換為可正確執行的特殊減號正則 /−/g)
@@ -379,13 +379,6 @@
         // --- 格式化基本金額 ---
         function formatBaseAmount(amount) {
             return formatAmount(amount, window.state.baseCurrencyCode);
-        }
-
-        function getAmountFontSize(length) {
-            length = length || 1;
-            if (length <= 6) return '3.2rem';
-            const dynamicSize = 3.2 - (length - 6) * 0.15;
-            return `${Math.max(1.6, dynamicSize)}rem`;
         }
 
         // --- Toast 提示功能 (修復：補回被遺漏定義的 showToast 函式) ---
@@ -658,7 +651,7 @@
 
             // --- 信用卡累積消費 HTML (與您設計之暖棕大地色系實體質感 mini 信用卡 Icon 完美置中融合) ---
             let cardsHTML = '';
-            activeCards = Object.entries(cardTotals).map(([name, data]) => ({ name, ...data }));
+            const activeCards = Object.entries(cardTotals).map(([name, data]) => ({ name, ...data }));
             activeCards.forEach(card => {
                 cardsHTML += `
                     <div class="flex items-center justify-between p-2.5 rounded-2xl bg-[#FAF7F2] border border-[#E6DFD5]/50">
@@ -931,7 +924,7 @@
                             </div>
 
                             <!-- 完美對稱與標準化等寬 4x5 算式大鍵盤 -->
-                            <div class="grid grid-cols-4 gap-2 p-1.5 bg-white/30 backdrop-blur-xl border border-[#E6DFD5] rounded-2xl shadow-md">
+                            <div class="grid grid-cols-4 gap-2 p-1.5 bg-white/30 backdrop-blur-xl border border-white/40 rounded-2xl shadow-md">
                                 <!-- Row 1 -->
                                 <button type="button" onclick="handleCalcInput('7')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">7</button>
                                 <button type="button" onclick="handleCalcInput('8')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">8</button>
@@ -982,7 +975,7 @@
                         <div class="space-y-1">
                             <span class="text-[10px] font-black text-[#8A7B70] block">管道</span>
                             <!-- 💡 核心修改：將高度設定為 h-9 移除預設 py-2.5，並加入 flex items-center 垂直置中文字，使與左側日期高度完全一致 -->
-                            <div class="w-full h-9 px-3 bg-[#FAF7F2] border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-400 flex items-center">現金入帳</div>
+                            <div class="w-full h-9 px-3 bg-[#FAF7F2] border-[#E6DFD5] rounded-xl text-xs font-black text-slate-400 flex items-center">現金入帳</div>
                         </div>`}
                     </div>
 
@@ -1002,7 +995,6 @@
             window.state.txType = type;
             const keys = Object.keys(window.state.categories[type]);
             window.state.txMajorCategory = keys[0] || '';
-            // 💡 核心修復：修正成取得 txMajorCategory 之下的子分類，解決原本寫錯成使用 Categories 頁籤的暫存變數（editingMajorCat）導致的清單不更新或卡死問題
             const subList = window.state.categories[type][window.state.txMajorCategory]?.sub || [];
             window.state.txSubCategory = subList[0]?.name || '';
             render();
@@ -1252,7 +1244,7 @@
                     
                     let detailsHTML = '';
                     if (window.state.expandedCategory === cat.name) {
-                        detailsHTML += `<div class="mt-1.5 pl-3 border-l-2 border-[#E6DFD5] space-y-1.5 max-h-36 overflow-y-auto no-scrollbar animate-slide-up">`;
+                        detailsHTML += `<div class="mt-1.5 pl-3 border-l-2 border-[#E6DFD5] space-y-1.5 max-h-36 overflow-y-auto no-scrollbar">`;
                         catTxs.forEach(tx => {
                             const showSubCurrency = tx.currency !== window.state.baseCurrencyCode;
                             const convertedAmount = convertToBase(tx.amount, tx.currency);
@@ -1271,14 +1263,19 @@
                         detailsHTML += `</div>`;
                     }
 
+                    // 💡 核心修改：利用精緻的實心 SVG 向量三角形箭頭（展開時向下 ▼，折疊時向右 ▶）取代原本的線條 Chevron 箭頭
+                    const isExpanded = window.state.expandedCategory === cat.name;
+                    const solidArrowSVG = isExpanded 
+                        ? `<svg viewBox="0 0 24 24" class="w-2 h-2 text-slate-400 inline" fill="currentColor"><path d="M21 8H3l9 11z"/></svg>`
+                        : `<svg viewBox="0 0 24 24" class="w-2 h-2 text-slate-400 inline" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+
                     categoryListHTML += `
                         <div class="border-b border-[#E6DFD5]/20 pb-1.5 last:border-0 last:pb-0">
-                            <!-- 💡 核心修改：將比率 (cat.percentage%) 改為顯示在分類名稱文字的後面，並加上點開詳情 toggle 交互 -->
                             <div onclick="toggleCategoryDetails('${cat.name}')" class="flex items-center justify-between text-xs cursor-pointer hover:bg-slate-50/80 p-1 rounded transition-colors select-none">
                                 <div class="flex items-center gap-1.5 font-bold text-[#8A7B70]">
                                     <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${colorLabel}"></span>
                                     <span>${cat.name} (${cat.percentage}%)</span>
-                                    <span class="text-[8px] text-slate-400 transition-transform duration-200">${window.state.expandedCategory === cat.name ? '▼' : '▶'}</span>
+                                    <span class="inline-flex items-center justify-center">${solidArrowSVG}</span>
                                 </div>
                                 <span class="font-black text-[#362C24]">${formatBaseAmount(cat.amount)}</span>
                             </div>
@@ -1383,7 +1380,7 @@
                     }
                 }
 
-                // 💡 核心修改：計算當日消費（支出）折合基準台幣後的總金額
+                // 💡 計算當日消費（支出）折合基準台幣後的總金額
                 const dayExpenseTotal = matchingTxs
                     .filter(tx => tx.type === 'expense')
                     .reduce((sum, tx) => sum + convertToBase(tx.amount, tx.currency), 0);
@@ -1433,7 +1430,7 @@
 
             let historyListHTML = '';
             selectedDayTxs.forEach(tx => {
-                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '🍳', color: 'bg-gray-100 text-gray-500' };
+                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
                 const convertedAmount = convertToBase(tx.amount, tx.currency);
                 const showSubCurrency = tx.currency !== window.state.baseCurrencyCode;
 
@@ -1528,6 +1525,133 @@
             window.state.currentTab = 'add';
             switchTab('add');
         };
+
+        // ==========================================
+        // 修改彈出視窗 (SLIDE-UP MODAL)
+        // ==========================================
+        function renderEditModal() {
+            const modal = document.getElementById('edit-modal');
+            const tx = window.state.editingTx;
+            if (!tx) {
+                modal.classList.add('hidden');
+                return;
+            }
+
+            const currentCategories = window.state.categories[tx.type] || {};
+            const majorCatObj = currentCategories[tx.majorCategory] || { sub: [] };
+
+            let editMajorsGrid = '';
+            Object.keys(currentCategories).forEach(catName => {
+                const catObj = currentCategories[catName];
+                const isSelected = tx.majorCategory === catName;
+                editMajorsGrid += `
+                    <button type="button" onclick="setEditMajorCategory('${catName}')" class="py-1.5 rounded-xl border transition-all flex flex-col items-center justify-center gap-0.5 ${isSelected ? 'border-[#4A3C31] bg-white scale-105 shadow-sm font-black text-[#4A3C31]' : 'border-[#E6DFD5]/30 bg-white/60 text-slate-500 font-bold'}">
+                        <span class="w-6 h-6 rounded-full border flex items-center justify-center ${catObj.color} text-xs shrink-0">
+                            ${getCategoryIcon(catName, "w-3.5 h-3.5")}
+                        </span>
+                        <span class="text-[9px] font-black">${catName}</span>
+                    </button>`;
+            });
+
+            let editSubsPills = '';
+            editSubsPills += `<div class="flex flex-wrap gap-1.5">`;
+            majorCatObj.sub.forEach(subObj => {
+                const isSelected = tx.subCategory === subObj.name;
+                editSubsPills += `
+                    <button type="button" onclick="setEditSubCategory('${subObj.name}')" class="px-2.5 py-1 rounded-full text-[10px] font-black border transition-all flex items-center gap-1 shadow-sm ${isSelected ? 'border-[#4A3C31] bg-[#4A3C31] text-[#FAF7F2]' : 'border-slate-100 bg-white text-slate-600'}">
+                        <span>${subObj.icon}</span>
+                        <span>${subObj.name}</span>
+                    </button>`;
+            });
+            editSubsPills += `</div>`;
+
+            let currencyOpts = '';
+            window.state.currencies.forEach(c => {
+                currencyOpts += `<option value="${c.code}" ${c.code === tx.currency ? 'selected' : ''}>${c.code}</option>`;
+            });
+
+            let paymentOpts = `<option value="現金" ${tx.paymentMethod === '現金' ? 'selected' : ''}>💵 現金 / 帳戶</option>`;
+            window.state.creditCards.forEach(card => {
+                paymentOpts += `<option value="${card.name}" ${card.name === window.state.txPaymentMethod ? 'selected' : ''}>💳 ${card.name}</option>`;
+            });
+
+            // 💡 記憶核心優化：檢查 modal 目前是否已是開啟狀態（即不含有 hidden 類別）
+            const isAlreadyVisible = !modal.classList.contains('hidden');
+
+            modal.innerHTML = `
+                <div class="w-full bg-[#FAF7F2] rounded-t-[36px] max-h-[85%] overflow-y-auto p-6 border-t border-[#E6DFD5] space-y-5 ${isAlreadyVisible ? '' : 'animate-slide-up'} shadow-[0_-10px_35px_rgba(74,60,49,0.25)]">
+                    
+                    <div class="flex items-center justify-between border-b border-[#E6DFD5] pb-3">
+                        <h3 class="font-serif italic text-2xl font-black text-[#4A3C31]">修改交易明細</h3>
+                        <button type="button" onclick="closeEditModal()" class="w-8 h-8 rounded-full bg-white border border-[#E6DFD5] flex items-center justify-center text-xs font-black shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition">✕</button>
+                    </div>
+
+                    <form onsubmit="submitSaveEdit(event)" class="space-y-4">
+                        
+                        <div class="flex bg-[#FFF5EE]/50 p-1 rounded-2xl border border-[#E6DFD5]">
+                            <button type="button" onclick="setEditTxType('expense')" class="flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${tx.type === 'expense' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}">💸 支出消費</button>
+                            <button type="button" onclick="setEditTxType('income')" class="flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${tx.type === 'income' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}">💰 收入進帳</button>
+                        </div>
+
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改大分類</span>
+                            <div class="grid grid-cols-4 gap-1.5">${editMajorsGrid}</div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改小分類</span>
+                            ${editSubsPills}
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-black text-[#8A7B70] block">幣別</span>
+                                <!-- 💡 核心修改：將高度設定為 h-9，讓上下邊緣與右側的金額輸入框完全一致，保證視覺比例完美工整 -->
+                                <select id="edit-currency-select" class="w-full h-9 px-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-[#4A3C31] focus:outline-none" onchange="setEditTxCurrency(this.value)">
+                                    ${currencyOpts}
+                                </select>
+                            </div>
+                            <div class="col-span-2 space-y-1">
+                                <span class="text-[10px] font-black text-[#8A7B70] block">金額</span>
+                                <!-- 💡 核心修改：將高度設定為 h-9，讓上下邊緣與左側的幣別下拉選單完全一致，保證視覺比例完美工整 -->
+                                <input type="number" required step="any" id="edit-amount-input" placeholder="修改金額" value="${tx.amount}" class="w-full h-9 px-3 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-[#4A3C31] focus:ring-1 focus:ring-[#4A3C31] focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-black text-[#8A7B70] block">交易日期</span>
+                                <!-- 💡 核心修改：將高度固定為 h-9，移除原有的 py 襯距，使高度與右側的管道完美對齊一致 -->
+                                <input type="date" required id="edit-date-input" value="${tx.date}" class="w-full h-9 px-2.5 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none">
+                            </div>
+                            ${tx.type === 'expense' ? `
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-black text-[#8A7B70] block">支付管道</span>
+                                <!-- 💡 核心修改：將高度固定為 h-9，移除原有的 py 襯距，使高度與左側的日期完美對齊一致 -->
+                                <select id="edit-payment-select" class="w-full h-9 px-2.5 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none">
+                                    ${paymentOpts}
+                                </select>
+                            </div>` : `
+                            <div class="space-y-1">
+                                <span class="text-[10px] font-black text-[#8A7B70] block">管道</span>
+                                <!-- 💡 核心修改：將高度固定為 h-9，加入 flex items-center 垂直置中文字，使其上下邊框與左側的日期輸入框完全一致 -->
+                                <div class="w-full h-9 px-2.5 bg-[#FAF7F2] border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-400 flex items-center">現金入帳</div>
+                            </div>`}
+                        </div>
+
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-black text-[#8A7B70] block">備註欄</span>
+                            <input type="text" id="edit-note-input" placeholder="點擊修改備註..." value="${tx.note || ''}" class="w-full px-3 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#4A3C31]">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 pt-2">
+                            <button type="button" onclick="closeEditModal()" class="w-full py-2.5 border border-[#E6DFD5] bg-white rounded-2xl font-black text-[#8A7B70] text-xs shadow-sm hover:bg-slate-50 active:scale-95 transition cursor-pointer">放棄修改</button>
+                            <button type="submit" class="w-full py-2.5 bg-[#4A3C31] text-white rounded-2xl font-black text-xs shadow-lg hover:bg-[#342921] active:scale-95 transition cursor-pointer">儲存更新</button>
+                        </div>
+                    </form>
+                </div>`;
+            modal.classList.remove('hidden');
+        }
 
         window.setHistoryFilter = function(filterKey, value) {
             if (filterKey === 'type') window.state.filterType = value;
@@ -1669,7 +1793,7 @@
                             <span>📲</span> iPhone 完美移轉與備份中心
                         </h3>
                         <p class="text-[10px] text-[#8A7B70] font-bold leading-normal">
-                            此網頁採用極簡無帳號本機儲存。若您換新手機或清除瀏覽器快取，可匯出/匯入備份以還原資料。
+                            此網頁採用極簡無帳號本機儲存。若您換新手機或清除瀏覽器快取，可匯出/匯入備份以原資料。
                         </p>
 
                         <button type="button" onclick="toggleMigrationGuide()" class="text-[10px] font-black text-[#4A3C31] underline flex items-center gap-1 cursor-pointer">
@@ -1766,145 +1890,6 @@
             showToast(`已解綁信用卡「${name}」`, 'info');
             render();
         };
-
-        window.submitSaveRates = function(event) {
-            event.preventDefault();
-            window.state.currencies = window.state.currencies.map(c => {
-                if (c.code === 'TWD') return c;
-                const inputVal = document.getElementById('rate-input-' + c.code).value;
-                return { ...c, rateToBase: parseFloat(inputVal) || c.rateToBase };
-            });
-            saveState();
-            showToast('匯率設定已成功更新！');
-            render();
-        };
-
-        // ==========================================
-        // 修改彈出視窗 (SLIDE-UP MODAL)
-        // ==========================================
-        function renderEditModal() {
-            const modal = document.getElementById('edit-modal');
-            const tx = window.state.editingTx;
-            if (!tx) {
-                modal.classList.add('hidden');
-                return;
-            }
-
-            const currentCategories = window.state.categories[tx.type] || {};
-            const majorCatObj = currentCategories[tx.majorCategory] || { sub: [] };
-
-            let editMajorsGrid = '';
-            Object.keys(currentCategories).forEach(catName => {
-                const catObj = currentCategories[catName];
-                const isSelected = tx.majorCategory === catName;
-                editMajorsGrid += `
-                    <button type="button" onclick="setEditMajorCategory('${catName}')" class="py-1.5 rounded-xl border transition-all flex flex-col items-center justify-center gap-0.5 ${isSelected ? 'border-[#4A3C31] bg-white scale-105 shadow-sm font-black text-[#4A3C31]' : 'border-[#E6DFD5]/30 bg-white/60 text-slate-500 font-bold'}">
-                        <span class="w-6 h-6 rounded-full border flex items-center justify-center ${catObj.color} text-xs shrink-0">
-                            ${getCategoryIcon(catName, "w-3.5 h-3.5")}
-                        </span>
-                        <span class="text-[9px] font-black">${catName}</span>
-                    </button>`;
-            });
-
-            let editSubsPills = '';
-            editSubsPills += `<div class="flex flex-wrap gap-1.5">`;
-            majorCatObj.sub.forEach(subObj => {
-                const isSelected = tx.subCategory === subObj.name;
-                editSubsPills += `
-                    <button type="button" onclick="setEditSubCategory('${subObj.name}')" class="px-2.5 py-1 rounded-full text-[10px] font-black border transition-all flex items-center gap-1 shadow-sm ${isSelected ? 'border-[#4A3C31] bg-[#4A3C31] text-[#FAF7F2]' : 'border-slate-100 bg-white text-slate-600'}">
-                        <span>${subObj.icon}</span>
-                        <span>${subObj.name}</span>
-                    </button>`;
-            });
-            editSubsPills += `</div>`;
-
-            let currencyOpts = '';
-            window.state.currencies.forEach(c => {
-                currencyOpts += `<option value="${c.code}" ${c.code === tx.currency ? 'selected' : ''}>${c.code}</option>`;
-            });
-
-            let paymentOpts = `<option value="現金" ${tx.paymentMethod === '現金' ? 'selected' : ''}>💵 現金 / 帳戶</option>`;
-            window.state.creditCards.forEach(card => {
-                paymentOpts += `<option value="${card.name}" ${card.name === window.state.txPaymentMethod ? 'selected' : ''}>💳 ${card.name}</option>`;
-            });
-
-            // 💡 記憶核心優化：檢查 modal 目前是否已是開啟狀態（即不含有 hidden 類別）
-            const isAlreadyVisible = !modal.classList.contains('hidden');
-
-            modal.innerHTML = `
-                <div class="w-full bg-[#FAF7F2] rounded-t-[36px] max-h-[85%] overflow-y-auto p-6 border-t border-[#E6DFD5] space-y-5 ${isAlreadyVisible ? '' : 'animate-slide-up'} shadow-[0_-10px_35px_rgba(74,60,49,0.25)]">
-                    
-                    <div class="flex items-center justify-between border-b border-[#E6DFD5] pb-3">
-                        <h3 class="font-serif italic text-2xl font-black text-[#4A3C31]">修改交易明細</h3>
-                        <button type="button" onclick="closeEditModal()" class="w-8 h-8 rounded-full bg-white border border-[#E6DFD5] flex items-center justify-center text-xs font-black shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition">✕</button>
-                    </div>
-
-                    <form onsubmit="submitSaveEdit(event)" class="space-y-4">
-                        
-                        <div class="flex bg-[#FFF5EE]/50 p-1 rounded-2xl border border-[#E6DFD5]">
-                            <button type="button" onclick="setEditTxType('expense')" class="flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${tx.type === 'expense' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}">💸 支出消費</button>
-                            <button type="button" onclick="setEditTxType('income')" class="flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${tx.type === 'income' ? 'bg-[#4A3C31] text-white shadow-md' : 'text-[#8A7B70] hover:text-[#4A3C31]'}">💰 收入進帳</button>
-                        </div>
-
-                        <div class="space-y-1">
-                            <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改大分類</span>
-                            <div class="grid grid-cols-4 gap-1.5">${editMajorsGrid}</div>
-                        </div>
-
-                        <div class="space-y-1">
-                            <span class="text-[10px] font-black text-[#8A7B70] uppercase tracking-widest block">修改小分類</span>
-                            ${editSubsPills}
-                        </div>
-
-                        <div class="grid grid-cols-3 gap-2">
-                            <div class="space-y-1">
-                                <span class="text-[10px] font-black text-[#8A7B70] block">幣別</span>
-                                <!-- 💡 核心修改：將高度設定為 h-9，讓上下邊緣與右側的金額輸入框完全一致，保證視覺比例完美工整 -->
-                                <select id="edit-currency-select" class="w-full h-9 px-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-[#4A3C31] focus:outline-none" onchange="setEditTxCurrency(this.value)">
-                                    ${currencyOpts}
-                                </select>
-                            </div>
-                            <div class="col-span-2 space-y-1">
-                                <span class="text-[10px] font-black text-[#8A7B70] block">金額</span>
-                                <!-- 💡 核心修改：將高度設定為 h-9，讓上下邊緣與左側的幣別下拉選單完全一致，保證視覺比例完美工整 -->
-                                <input type="number" required step="any" id="edit-amount-input" placeholder="修改金額" value="${tx.amount}" class="w-full h-9 px-3 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-[#4A3C31] focus:ring-1 focus:ring-[#4A3C31] focus:outline-none">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="space-y-1">
-                                <span class="text-[10px] font-black text-[#8A7B70] block">交易日期</span>
-                                <!-- 💡 核心修改：將高度固定為 h-9，移除原有的 py 襯距，使高度與右側的管道完美對齊一致 -->
-                                <input type="date" required id="edit-date-input" value="${tx.date}" class="w-full h-9 px-2.5 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none">
-                            </div>
-                            ${tx.type === 'expense' ? `
-                            <div class="space-y-1">
-                                <span class="text-[10px] font-black text-[#8A7B70] block">支付管道</span>
-                                <!-- 💡 核心修改：將高度固定為 h-9，移除原有的 py 襯距，使高度與左側的日期完美對齊一致 -->
-                                <select id="edit-payment-select" class="w-full h-9 px-2.5 bg-white border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-700 focus:outline-none">
-                                    ${paymentOpts}
-                                </select>
-                            </div>` : `
-                            <div class="space-y-1">
-                                <span class="text-[10px] font-black text-[#8A7B70] block">管道</span>
-                                <!-- 💡 核心修改：將高度固定為 h-9，加入 flex items-center 垂直置中文字，使其上下邊框與左側的日期輸入框完全一致 -->
-                                <div class="w-full h-9 px-2.5 bg-[#FAF7F2] border border-[#E6DFD5] rounded-xl text-xs font-black text-slate-400 flex items-center">現金入帳</div>
-                            </div>`}
-                        </div>
-
-                        <div class="space-y-1">
-                            <span class="text-[10px] font-black text-[#8A7B70] block">備註欄</span>
-                            <input type="text" id="edit-note-input" placeholder="點擊修改備註..." value="${tx.note || ''}" class="w-full px-3 py-2 bg-white border border-[#E6DFD5] rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#4A3C31]">
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3 pt-2">
-                            <button type="button" onclick="closeEditModal()" class="w-full py-2.5 border border-[#E6DFD5] bg-white rounded-2xl font-black text-[#8A7B70] text-xs shadow-sm hover:bg-slate-50 active:scale-95 transition cursor-pointer">放棄修改</button>
-                            <button type="submit" class="w-full py-2.5 bg-[#4A3C31] text-white rounded-2xl font-black text-xs shadow-lg hover:bg-[#342921] active:scale-95 transition cursor-pointer">儲存更新</button>
-                        </div>
-                    </form>
-                </div>`;
-            modal.classList.remove('hidden');
-        }
 
         window.triggerEdit = function(id) {
             const tx = window.state.transactions.find(t => t.id === id);
