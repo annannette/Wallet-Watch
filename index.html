@@ -1444,7 +1444,7 @@
 
             let historyListHTML = '';
             selectedDayTxs.forEach(tx => {
-                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
+                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '🍳', color: 'bg-gray-100 text-gray-500' };
                 const convertedAmount = convertToBase(tx.amount, tx.currency);
                 const showSubCurrency = tx.currency !== window.state.baseCurrencyCode;
 
@@ -1598,7 +1598,7 @@
 
             let paymentOpts = `<option value="現金" ${tx.paymentMethod === '現金' ? 'selected' : ''}>💵 現金 / 帳戶</option>`;
             window.state.creditCards.forEach(card => {
-                paymentOpts += `<option value="${card.name}" ${card.name === tx.paymentMethod ? 'selected' : ''}>💳 ${card.name}</option>`;
+                paymentOpts += `<option value="${card.name}" ${card.name === window.state.txPaymentMethod ? 'selected' : ''}>💳 ${card.name}</option>`;
             });
 
             // 💡 記憶核心優化：檢查 modal 目前是否已是開啟狀態（即不含有 hidden 類別）
@@ -1708,10 +1708,15 @@
                 const list = window.state.categories[type] || {};
                 Object.entries(list).forEach(([catName, catObj]) => {
                     let subBadgesHTML = '';
-                    // 💡 修正反斜線轉義與不合規範的替換
-                    catObj.sub.forEach(s => {
+                    // 💡 修正反斜線轉義與不合規範的替換（並加入拖曳排序屬性與事件，全面提升使用者交互體驗）
+                    catObj.sub.forEach((s, idx) => {
                         subBadgesHTML += `
-                            <div class="group pl-2.5 pr-1.5 py-1 rounded-full text-[10px] font-black border border-[#E6DFD5]/50 bg-[#FAF7F2] flex items-center gap-1">
+                            <div draggable="true"
+                                 ondragstart="handleSubDragStart(event, '${type}', '${catName}', ${idx})"
+                                 ondragover="handleSubDragOver(event)"
+                                 ondrop="handleSubDrop(event, '${type}', '${catName}', ${idx})"
+                                 ondragend="handleSubDragEnd(event)"
+                                 class="group pl-2.5 pr-1.5 py-1 rounded-full text-[10px] font-black border border-[#E6DFD5]/50 bg-[#FAF7F2] flex items-center gap-1 cursor-grab active:cursor-grabbing select-none hover:border-[#4A3C31]/40 transition-all duration-150">
                                 <span>${s.icon} ${s.name}</span>
                                 <button onclick="deleteSubCategory('${type}', '${catName}', '${s.name}')" class="w-3.5 h-3.5 rounded-full bg-slate-200 hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center text-[8px] cursor-pointer font-black">✕</button>
                             </div>`;
@@ -1907,49 +1912,6 @@
             render();
         };
 
-        window.submitSaveEdit = function(event) {
-            event.preventDefault();
-            const editAmountInput = parseFloat(document.getElementById('edit-amount-input').value);
-            if (isNaN(editAmountInput) || editAmountInput <= 0) {
-                showToast('請輸入有效的金額！', 'error');
-                return;
-            }
-
-            const index = window.state.transactions.findIndex(t => t.id === window.state.editingTx.id);
-            if (index !== -1) {
-                // 如果修改後的貨幣為 TWD，強制將輸入值四捨五入為整數
-                let targetAmount = editAmountInput;
-                const selectedCurrency = document.getElementById('edit-currency-select').value;
-                if (selectedCurrency === 'TWD') {
-                    targetAmount = Math.round(editAmountInput);
-                }
-
-                window.state.transactions[index] = {
-                    ...window.state.transactions[index],
-                    type: window.state.editingTx.type,
-                    majorCategory: window.state.editingTx.majorCategory,
-                    subCategory: window.state.editingTx.subCategory,
-                    amount: targetAmount,
-                    currency: selectedCurrency,
-                    paymentMethod: window.state.editingTx.type === 'income' ? '現金' : document.getElementById('edit-payment-select').value,
-                    date: document.getElementById('edit-date-input').value,
-                    note: document.getElementById('edit-note-input').value.trim()
-                };
-                saveState();
-                showToast('交易明細已更新儲存！');
-            }
-
-            window.state.editingTx = null;
-            render();
-        };
-
-        window.deleteTx = function(id) {
-            window.state.transactions = window.state.transactions.filter(t => t.id !== id);
-            saveState();
-            showToast('明細已順利刪除', 'info');
-            render();
-        };
-
         // 💡 解決刪除小分類未定義之核心函式（升級為彈出式「修改名稱與代表符」與「確認刪除」雙效機制）
         window.deleteSubCategory = function(type, major, subName) {
             const modal = document.getElementById('sub-action-modal');
@@ -2095,6 +2057,52 @@
             // 清空輸入框並重新渲染
             window.state.newSubName = '';
             render();
+        };
+
+        // ==========================================
+        // 💡 核心拖曳互動：新增小分類拖曳排序處理函式，確保代碼完整運行不報錯
+        // ==========================================
+        let dragSourceType = null;
+        let dragSourceMajor = null;
+        let dragSourceIndex = null;
+
+        window.handleSubDragStart = function(event, type, major, index) {
+            dragSourceType = type;
+            dragSourceMajor = major;
+            dragSourceIndex = index;
+            event.dataTransfer.effectAllowed = 'move';
+            event.target.classList.add('opacity-40', 'scale-95');
+        };
+
+        window.handleSubDragOver = function(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            return false;
+        };
+
+        window.handleSubDrop = function(event, type, major, targetIndex) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            if (dragSourceType === type && dragSourceMajor === major && dragSourceIndex !== null && dragSourceIndex !== targetIndex) {
+                const subList = window.state.categories[type][major].sub;
+                const draggedItem = subList[dragSourceIndex];
+                
+                // 調整陣列內小分類順序
+                subList.splice(dragSourceIndex, 1);
+                subList.splice(targetIndex, 0, draggedItem);
+                
+                saveState();
+                showToast('已更新小分類排列順序！', 'success');
+                render();
+            }
+        };
+
+        window.handleSubDragEnd = function(event) {
+            event.target.classList.remove('opacity-40', 'scale-95');
+            dragSourceType = null;
+            dragSourceMajor = null;
+            dragSourceIndex = null;
         };
 
         // ==========================================
