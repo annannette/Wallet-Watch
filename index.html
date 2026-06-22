@@ -1154,7 +1154,7 @@
             const monthNum = parseInt(month);
             const monthStr = String(monthNum).padStart(2, '0');
 
-            // 💡 邏輯保護：若無選定當日、或月份不符合當前月份，則動態同步今天或當月1號
+            // 💡 邏輯保護：若慢選定當日、或月份不符合當前月份，則動態同步今天或當月1號
             if (!window.state.selectedDay || !window.state.selectedDay.startsWith(window.state.selectedMonth)) {
                 const today = new Date();
                 const todayStr = today.toISOString().split('T')[0];
@@ -1444,7 +1444,7 @@
 
             let historyListHTML = '';
             selectedDayTxs.forEach(tx => {
-                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '🍳', color: 'bg-gray-100 text-gray-500' };
+                const majorDetails = window.state.categories[tx.type]?.[tx.majorCategory] || { icon: '❓', color: 'bg-gray-100 text-gray-500' };
                 const convertedAmount = convertToBase(tx.amount, tx.currency);
                 const showSubCurrency = tx.currency !== window.state.baseCurrencyCode;
 
@@ -1708,14 +1708,20 @@
                 const list = window.state.categories[type] || {};
                 Object.entries(list).forEach(([catName, catObj]) => {
                     let subBadgesHTML = '';
-                    // 💡 修正反斜線轉義與不合規範的替換（並加入拖曳排序屬性與事件，全面提升使用者交互體驗）
+                    // 💡 修正反斜線轉義與不合規範的替換（並加入拖曳與行動端觸控排序屬性，全面提升使用者交互體驗）
                     catObj.sub.forEach((s, idx) => {
                         subBadgesHTML += `
                             <div draggable="true"
+                                 data-index="${idx}"
+                                 data-type="${type}"
+                                 data-major="${catName}"
                                  ondragstart="handleSubDragStart(event, '${type}', '${catName}', ${idx})"
                                  ondragover="handleSubDragOver(event)"
                                  ondrop="handleSubDrop(event, '${type}', '${catName}', ${idx})"
                                  ondragend="handleSubDragEnd(event)"
+                                 ontouchstart="handleSubTouchStart(event, '${type}', '${catName}', ${idx})"
+                                 ontouchmove="handleSubTouchMove(event)"
+                                 ontouchend="handleSubTouchEnd(event, '${type}', '${catName}')"
                                  class="group pl-2.5 pr-1.5 py-1 rounded-full text-[10px] font-black border border-[#E6DFD5]/50 bg-[#FAF7F2] flex items-center gap-1 cursor-grab active:cursor-grabbing select-none hover:border-[#4A3C31]/40 transition-all duration-150">
                                 <span>${s.icon} ${s.name}</span>
                                 <button onclick="deleteSubCategory('${type}', '${catName}', '${s.name}')" class="w-3.5 h-3.5 rounded-full bg-slate-200 hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center text-[8px] cursor-pointer font-black">✕</button>
@@ -2103,6 +2109,60 @@
             dragSourceType = null;
             dragSourceMajor = null;
             dragSourceIndex = null;
+        };
+
+        // ==========================================
+        // 💡 行動端觸控拖曳排序（Touch Drag & Drop）支援
+        // ==========================================
+        let touchStartIdx = null;
+        let touchTargetType = null;
+        let touchTargetMajor = null;
+        let activeTouchElement = null;
+
+        window.handleSubTouchStart = function(event, type, major, index) {
+            touchStartIdx = index;
+            touchTargetType = type;
+            touchTargetMajor = major;
+            activeTouchElement = event.currentTarget;
+            activeTouchElement.classList.add('opacity-40', 'scale-95');
+        };
+
+        window.handleSubTouchMove = function(event) {
+            if (event.cancelable) event.preventDefault();
+        };
+
+        window.handleSubTouchEnd = function(event, type, major) {
+            if (activeTouchElement) {
+                activeTouchElement.classList.remove('opacity-40', 'scale-95');
+            }
+            
+            const touch = event.changedTouches[0];
+            const elementTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (!elementTarget) return;
+
+            const targetDiv = elementTarget.closest('[draggable="true"]');
+            if (targetDiv) {
+                const targetIndex = parseInt(targetDiv.getAttribute('data-index'));
+                const targetType = targetDiv.getAttribute('data-type');
+                const targetMajor = targetDiv.getAttribute('data-major');
+
+                if (touchTargetType === targetType && touchTargetMajor === targetMajor && touchStartIdx !== null && touchStartIdx !== targetIndex) {
+                    const subList = window.state.categories[type][major].sub;
+                    const draggedItem = subList[touchStartIdx];
+                    
+                    subList.splice(touchStartIdx, 1);
+                    subList.splice(targetIndex, 0, draggedItem);
+                    
+                    saveState();
+                    showToast('已更新小分類排列順序！', 'success');
+                    render();
+                }
+            }
+
+            touchStartIdx = null;
+            touchTargetType = null;
+            touchTargetMajor = null;
+            activeTouchElement = null;
         };
 
         // ==========================================
