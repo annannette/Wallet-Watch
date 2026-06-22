@@ -769,7 +769,7 @@
                     </div>
 
                     <!-- 信用卡消費統計 -->
-                    <div class="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
+                    <div class="bg-white p-4 rounded-3xl border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
                         <div class="flex items-center justify-between mb-3 border-b border-[#FAF7F2] pb-2">
                             <h3 class="text-xs font-black text-[#8A7B70] uppercase tracking-wider flex items-center gap-1.5">
                                 <span>💳</span> 信用卡累積消費金額
@@ -933,7 +933,7 @@
 
                                 <!-- Row 2 -->
                                 <button type="button" onclick="handleCalcInput('4')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">4</button>
-                                <!-- 💡 核心修復：修正原本錯誤引用的 05 事件值回傳，改為標準的數字 5 -->
+                                <!-- 💡 核心修復：修正原本錯誤引年的 05 事件值回傳，改為標準的數字 5 -->
                                 <button type="button" onclick="handleCalcInput('5')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">5</button>
                                 <button type="button" onclick="handleCalcInput('6')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">6</button>
                                 <button type="button" onclick="handleCalcInput('*')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">×</button>
@@ -1285,11 +1285,15 @@
                 categoryListHTML += `</div></div>`;
             }
 
+            // 💡 核心修改：在標題右側（您在截圖中框選的區域）加入當月消費總額的即時計算數值
             const categoryDistributionHTML = `
                 <div class="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
-                    <h3 class="text-xs font-black text-[#8A7B70] uppercase tracking-wider mb-3.5 flex items-center gap-1.5">
-                        <span>📊</span> 本月支出類別占比
-                    </h3>
+                    <div class="flex justify-between items-center mb-3.5 border-b border-[#FAF7F2] pb-2">
+                        <h3 class="text-xs font-black text-[#8A7B70] uppercase tracking-wider flex items-center gap-1.5">
+                            <span>📊</span> 本月支出類別占比
+                        </h3>
+                        <span class="text-[10px] font-black text-[#4A3C31]">當月消費總額: ${formatBaseAmount(expenseTotal)}</span>
+                    </div>
                     <div class="flex items-center gap-4">${categoryListHTML}</div>
                 </div>
             `;
@@ -1380,7 +1384,7 @@
                     }
                 }
 
-                // 💡 計算當日消費（支出）折合基準台幣後的總金額
+                // 計算當日消費（支出）折合基準台幣後的總金額
                 const dayExpenseTotal = matchingTxs
                     .filter(tx => tx.type === 'expense')
                     .reduce((sum, tx) => sum + convertToBase(tx.amount, tx.currency), 0);
