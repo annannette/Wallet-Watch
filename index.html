@@ -176,7 +176,8 @@
         <div class="hidden sm:block absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#2C302E] rounded-full pointer-events-none z-40"></div>
 
         <!-- 底部 iOS 經典阻擋導覽列 (儀表板平鋪與其他按鍵完全水平對齊，無 any 多餘位移) -->
-        <nav class="bg-white/90 backdrop-blur-lg border-t border-[#E6DFD5]/80 py-2.5 shadow-lg z-30 px-3 flex justify-around items-center h-16 safe-bottom shrink-0 w-full relative" style="touch-action: none;">
+        <!-- 💡 核心修改：將 h-16 變更為 min-h-[64px]，以便在加上 iOS 安全區襯距 (.safe-bottom) 後，白色導覽列能自動向下延伸完整包覆按鈕範圍，防止溢出。 -->
+        <nav class="bg-white/90 backdrop-blur-lg border-t border-[#E6DFD5]/80 py-2.5 shadow-lg z-30 px-3 flex justify-around items-center min-h-[64px] safe-bottom shrink-0 w-full relative" style="touch-action: none;">
             
             <!-- 1. 歷史明細 -->
             <button onclick="switchTab('history')" id="tab-history" class="flex flex-col items-center gap-1 transition-all duration-150 cursor-pointer text-slate-400 font-bold">
@@ -259,7 +260,7 @@
                 { id: 'tx-4', date: `${formatMonth(month)}-05`, type: 'expense', majorCategory: '服裝', subCategory: '衣服', amount: 1200, currency: 'TWD', paymentMethod: '國泰 CUBE 卡', note: '買夏日防曬外套' },
                 { id: 'tx-5', date: `${formatMonth(month)}-06`, type: 'expense', majorCategory: '美妝', subCategory: '保養品', amount: 1500, currency: 'TWD', paymentMethod: '中信 LINE Pay 卡', note: '保濕精華液' },
                 { id: 'tx-pre-1', date: `${formatMonth(month === 1 ? 12 : month - 1)}-10`, type: 'expense', majorCategory: '飲食', subCategory: '晚餐', amount: 3500, currency: 'TWD', paymentMethod: '富邦 J 卡', note: '高檔燒肉慶生' },
-                { id: 'tx-pre-2', date: `${formatMonth(month === 1 ? 12 : month - 1)}-15`, type: 'expense', majorCategory: '娛樂', subCategory: '旅行', amount: 8000, currency: 'TWD', paymentMethod: '國泰 CUBE 卡', note: '兩天一夜小旅行' },
+                { id: 'tx-pre-2', date: `${formatMonth(month === 1 ? 12 : month - 1)}-15`, type: 'expense', majorCategory: '娛樂', subCategory: '旅行', amount: 8000, currency: 'TWD', paymentMethod: '國泰 CUBE 卡', note: '慢步大自然之旅' },
                 { id: 'tx-pre-3', date: `${formatMonth(month === 1 ? 12 : month - 1)}-01`, type: 'income', majorCategory: '收入', subCategory: '正職薪資', amount: 45000, currency: 'TWD', paymentMethod: '現金', note: '上月薪資入帳' },
                 { id: 'tx-pre2-1', date: `${formatMonth(month <= 2 ? (month === 2 ? 12 : 11) : month - 2)}-05`, type: 'expense', majorCategory: '飲食', subCategory: '午餐', amount: 4200, currency: 'TWD', paymentMethod: '現金', note: '日常飲食累計' },
                 { id: 'tx-pre2-2', date: `${formatMonth(month <= 2 ? (month === 2 ? 12 : 11) : month - 2)}-18`, type: 'expense', majorCategory: '美妝', subCategory: '彩妝', amount: 2600, currency: 'TWD', paymentMethod: '中信 LINE Pay 卡', note: '專櫃粉底液' }
@@ -381,6 +382,14 @@
             return formatAmount(amount, window.state.baseCurrencyCode);
         }
 
+        // 💡 核心補回：定義記一筆金額字體動態調整之 `getAmountFontSize` 函數，修復 ReferenceError 執行期崩潰
+        function getAmountFontSize(length) {
+            length = length || 1;
+            if (length <= 6) return '3.2rem';
+            const dynamicSize = 3.2 - (length - 6) * 0.15;
+            return `${Math.max(1.6, dynamicSize)}rem`;
+        }
+
         // --- Toast 提示功能 (修復：補回被遺漏定義的 showToast 函式) ---
         function showToast(message, type = 'success') {
             const toastEl = document.getElementById('toast');
@@ -457,6 +466,7 @@
             }
         }
 
+        // 💡 核心定義：定義底部導覽列圖示生成函數 `getTabIcon`，修復 ReferenceError 嚴重當機問題
         function getTabIcon(name, active, stroke, className = "w-6 h-6 transition-colors") {
             const strokeColor = stroke || (active ? "#4A3C31" : "#A39385");
             const fillOpacity = active ? "0.2" : "0.05";
@@ -763,7 +773,7 @@
                             <h3 class="text-xs font-black text-[#8A7B70] uppercase tracking-wider flex items-center gap-1.5">
                                 <span>📈</span> 歷史月度消費對比
                             </h3>
-                            <span class="text-[9px] bg-[#FAF7F2] border border-[#E6DFD5] px-2 py-0.5 rounded-full font-black text-[#8A7B70]">僅統計支出</span>
+                            <span class="text-[9px] bg-[#FAF7F2] border border-[#E6DFD5] px-2.5 py-0.5 rounded-full font-black text-[#8A7B70]">僅統計支出</span>
                         </div>
                         <div class="space-y-3">${trendRowsHTML}</div>
                     </div>
@@ -933,7 +943,7 @@
 
                                 <!-- Row 2 -->
                                 <button type="button" onclick="handleCalcInput('4')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">4</button>
-                                <!-- 💡 核心修復：修正原本錯誤引年的 05 事件值回傳，改為標準的數字 5 -->
+                                <!-- 💡 核心修復：修正原本錯誤引年的 05 事件值回傳，改為標準 of 數字 5 -->
                                 <button type="button" onclick="handleCalcInput('5')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">5</button>
                                 <button type="button" onclick="handleCalcInput('6')" class="h-11 flex items-center justify-center rounded-xl bg-white/50 hover:bg-white/70 border border-[#E6DFD5] active:scale-95 shadow-sm font-black text-lg text-[#362C24]">6</button>
                                 <button type="button" onclick="handleCalcInput('*')" class="h-11 flex items-center justify-center rounded-xl bg-[#4A3C31]/10 hover:bg-[#4A3C31]/20 border border-[#4A3C31]/20 active:scale-95 shadow-sm font-black text-lg text-[#4A3C31]">×</button>
@@ -1384,7 +1394,7 @@
                     }
                 }
 
-                // 計算當日消費（支出）折合基準台幣後的總金額
+                // 💡 計算當日消費（支出）折合基準台幣後的總金額
                 const dayExpenseTotal = matchingTxs
                     .filter(tx => tx.type === 'expense')
                     .reduce((sum, tx) => sum + convertToBase(tx.amount, tx.currency), 0);
@@ -1531,6 +1541,18 @@
         };
 
         // ==========================================
+        // 💡 核心自訂展開交互：新增「支出類別占比」點開展開詳細消費
+        // ==========================================
+        window.toggleCategoryDetails = function(catName) {
+            if (window.state.expandedCategory === catName) {
+                window.state.expandedCategory = null;
+            } else {
+                window.state.expandedCategory = catName;
+            }
+            render();
+        };
+
+        // ==========================================
         // 修改彈出視窗 (SLIDE-UP MODAL)
         // ==========================================
         function renderEditModal() {
@@ -1576,7 +1598,7 @@
 
             let paymentOpts = `<option value="現金" ${tx.paymentMethod === '現金' ? 'selected' : ''}>💵 現金 / 帳戶</option>`;
             window.state.creditCards.forEach(card => {
-                paymentOpts += `<option value="${card.name}" ${card.name === window.state.txPaymentMethod ? 'selected' : ''}>💳 ${card.name}</option>`;
+                paymentOpts += `<option value="${card.name}" ${card.name === tx.paymentMethod ? 'selected' : ''}>💳 ${card.name}</option>`;
             });
 
             // 💡 記憶核心優化：檢查 modal 目前是否已是開啟狀態（即不含有 hidden 類別）
@@ -1660,16 +1682,6 @@
         window.setHistoryFilter = function(filterKey, value) {
             if (filterKey === 'type') window.state.filterType = value;
             if (filterKey === 'payment') window.state.filterPayment = value;
-            render();
-        };
-
-        // 💡 解決類別占比展開詳細消費之互動函式
-        window.toggleCategoryDetails = function(catName) {
-            if (window.state.expandedCategory === catName) {
-                window.state.expandedCategory = null;
-            } else {
-                window.state.expandedCategory = catName;
-            }
             render();
         };
 
@@ -1895,44 +1907,6 @@
             render();
         };
 
-        window.triggerEdit = function(id) {
-            const tx = window.state.transactions.find(t => t.id === id);
-            if (tx) {
-                window.state.editingTx = JSON.parse(JSON.stringify(tx));
-                render();
-            }
-        };
-
-        window.closeEditModal = function() {
-            window.state.editingTx = null;
-            render();
-        };
-
-        window.setEditTxType = function(type) {
-            window.state.editingTx.type = type;
-            const keys = Object.keys(window.state.categories[type]);
-            window.state.editingTx.majorCategory = keys[0] || '';
-            const subs = window.state.categories[type][window.state.editingTx.majorCategory]?.sub || [];
-            window.state.editingTx.subCategory = subs[0]?.name || '';
-            render();
-        };
-
-        window.setEditMajorCategory = function(catName) {
-            window.state.editingTx.majorCategory = catName;
-            const subs = window.state.categories[window.state.editingTx.type][catName]?.sub || [];
-            window.state.editingTx.subCategory = subs[0]?.name || '';
-            render();
-        };
-
-        window.setEditSubCategory = function(subName) {
-            window.state.editingTx.subCategory = subName;
-            render();
-        };
-
-        window.setEditTxCurrency = function(currency) {
-            window.state.editingTx.currency = currency;
-        };
-
         window.submitSaveEdit = function(event) {
             event.preventDefault();
             const editAmountInput = parseFloat(document.getElementById('edit-amount-input').value);
@@ -2051,7 +2025,6 @@
 
             saveState();
             closeSubActionModal();
-            // 💡 修正：將原本筆誤的 showToast+ 修正為標準呼叫 showToast(
             showToast(`小分類已成功更新為「${newIcon} ${newName}」`);
             render();
         };
