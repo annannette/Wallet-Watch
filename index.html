@@ -325,6 +325,8 @@
 
         // --- 儲存狀態至 LocalStorage ---
         function saveState() {
+            // 💡 核心修改：消費明細按照日期順序排列（最新日期優先）
+            window.state.transactions.sort((a, b) => b.date.localeCompare(a.date));
             localStorage.setItem('ios_budget_transactions', JSON.stringify(window.state.transactions));
             localStorage.setItem('ios_budget_categories', JSON.stringify(window.state.categories));
             localStorage.setItem('ios_budget_credit_cards', JSON.stringify(window.state.creditCards));
@@ -773,7 +775,7 @@
                             <h3 class="text-xs font-black text-[#8A7B70] uppercase tracking-wider flex items-center gap-1.5">
                                 <span>📈</span> 歷史月度消費對比
                             </h3>
-                            <span class="text-[9px] bg-[#FAF7F2] border border-[#E6DFD5] px-2.5 py-0.5 rounded-full font-black text-[#8A7B70]">僅統計支出</span>
+                            <span class="text-[9px] bg-[#FAF7F2] border border-[#E6DFD5] px-2 py-0.5 rounded-full font-black text-[#8A7B70]">僅統計支出</span>
                         </div>
                         <div class="space-y-3">${trendRowsHTML}</div>
                     </div>
@@ -1295,7 +1297,7 @@
                 categoryListHTML += `</div></div>`;
             }
 
-            // 💡 核心修改：在標題右側（您在截圖中框選的區域）加入當月消費總額的即時計算數值
+            // 💡 核心修改：在標題右側加入當月消費總額的即時計算數值
             const categoryDistributionHTML = `
                 <div class="bg-white rounded-3xl p-4 border border-[#E6DFD5] shadow-[0_4px_20px_rgba(74,60,49,0.02)]">
                     <div class="flex justify-between items-center mb-3.5 border-b border-[#FAF7F2] pb-2">
@@ -1541,7 +1543,7 @@
         };
 
         // ==========================================
-        // 💡 核心自訂展開交互：新增「支出類別占比」點開展開詳細消費
+        // 💡 核心自訂展開互動：新增「支出類別占比」點開展開詳細消費
         // ==========================================
         window.toggleCategoryDetails = function(catName) {
             if (window.state.expandedCategory === catName) {
@@ -1553,7 +1555,7 @@
         };
 
         // ==========================================
-        // 修改彈出視窗 (SLIDE-UP MODAL)
+        // 💡 核心自訂修改彈出視窗：解決 renderEditModal is not defined 錯誤
         // ==========================================
         function renderEditModal() {
             const modal = document.getElementById('edit-modal');
@@ -1915,6 +1917,99 @@
             window.state.creditCards = window.state.creditCards.filter(c => c.id !== id);
             saveState();
             showToast(`已解綁信用卡「${name}」`, 'info');
+            render();
+        };
+
+        window.submitSaveRates = function(event) {
+            event.preventDefault();
+            window.state.currencies = window.state.currencies.map(c => {
+                if (c.code === 'TWD') return c;
+                const inputVal = document.getElementById('rate-input-' + c.code).value;
+                return { ...c, rateToBase: parseFloat(inputVal) || c.rateToBase };
+            });
+            saveState();
+            showToast('匯率設定已成功更新！');
+            render();
+        };
+
+        window.triggerEdit = function(id) {
+            const tx = window.state.transactions.find(t => t.id === id);
+            if (tx) {
+                window.state.editingTx = JSON.parse(JSON.stringify(tx));
+                render();
+            }
+        };
+
+        window.closeEditModal = function() {
+            window.state.editingTx = null;
+            render();
+        };
+
+        window.setEditTxType = function(type) {
+            window.state.editingTx.type = type;
+            const keys = Object.keys(window.state.categories[type]);
+            window.state.editingTx.majorCategory = keys[0] || '';
+            const subs = window.state.categories[type][window.state.editingTx.majorCategory]?.sub || [];
+            window.state.editingTx.subCategory = subs[0]?.name || '';
+            render();
+        };
+
+        window.setEditMajorCategory = function(catName) {
+            window.state.editingTx.majorCategory = catName;
+            const subs = window.state.categories[window.state.editingTx.type][catName]?.sub || [];
+            window.state.editingTx.subCategory = subs[0]?.name || '';
+            render();
+        };
+
+        window.setEditSubCategory = function(subName) {
+            window.state.editingTx.subCategory = subName;
+            render();
+        };
+
+        window.setEditTxCurrency = function(currency) {
+            window.state.editingTx.currency = currency;
+        };
+
+        window.submitSaveEdit = function(event) {
+            event.preventDefault();
+            const editAmountInput = parseFloat(document.getElementById('edit-amount-input').value);
+            if (isNaN(editAmountInput) || editAmountInput <= 0) {
+                showToast('請輸入有效的金額！', 'error');
+                return;
+            }
+
+            const index = window.state.transactions.findIndex(t => t.id === window.state.editingTx.id);
+            if (index !== -1) {
+                // 如果修改後的貨幣為 TWD，強制將輸入值四捨五入為整數
+                let targetAmount = editAmountInput;
+                const selectedCurrency = document.getElementById('edit-currency-select').value;
+                if (selectedCurrency === 'TWD') {
+                    targetAmount = Math.round(editAmountInput);
+                }
+
+                window.state.transactions[index] = {
+                    ...window.state.transactions[index],
+                    type: window.state.editingTx.type,
+                    majorCategory: window.state.editingTx.majorCategory,
+                    subCategory: window.state.editingTx.subCategory,
+                    amount: targetAmount,
+                    currency: selectedCurrency,
+                    paymentMethod: window.state.editingTx.type === 'income' ? '現金' : document.getElementById('edit-payment-select').value,
+                    date: document.getElementById('edit-date-input').value,
+                    note: document.getElementById('edit-note-input').value.trim()
+                };
+                saveState();
+                showToast('交易明細已更新儲存！');
+            }
+
+            window.state.editingTx = null;
+            render();
+        };
+
+        window.deleteTx = function(id) {
+            window.state.transactions = window.state.transactions.filter(t => t.id !== id);
+            saveState();
+            showToast('明細已順利刪除', 'info');
             render();
         };
 
@@ -2362,6 +2457,8 @@
                 console.error("Failed to patch currencies", e);
             }
             
+            // 💡 核心修改：在頁面載入時自動將所有歷史消費明細依日期「降序排序（最新優先）」
+            window.state.transactions.sort((a, b) => b.date.localeCompare(a.date));
             initHeaderSelectors();
             render();
         };
